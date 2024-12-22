@@ -13,6 +13,8 @@ on:
       - "**"  # Run for all branches pushed by lab members
       #- pr-clang-format  # Only run for the pr-clang-format branch
 
+  workflow_dispatch: # Allows manual trigger
+
 jobs:
   clang-format:
     runs-on: ubuntu-latest
