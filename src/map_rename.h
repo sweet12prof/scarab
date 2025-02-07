@@ -123,9 +123,18 @@ struct reg_table {
   struct reg_table_ops *ops;
 };
 
+struct reg_checkpoint {
+  // metadata for validation of the special checkpoint mechanism in Scarab
+  Flag is_valid;
+
+  // only map on-path op for recovery
+  struct reg_table_entry *entries;
+};
+
 struct reg_file {
   /* properties */
   int reg_type;
+  struct reg_checkpoint *reg_checkpoint;
 
   /* register table instances */
   struct reg_table *reg_table[REG_TABLE_TYPE_NUM];
@@ -162,12 +171,12 @@ struct reg_table_ops {
 /**************************************************************************************/
 /* External Methods */
 
-void reg_file_init(void);                        // init the register file and its register map tables
-Flag reg_file_available(uns stage_op_count);     // check if there are enough register entries
-void reg_file_rename(Op *op);                    // alloc destination registers for the operand
-Flag reg_file_issue(Op *op);                     // check the op before being issued into the FU
-void reg_file_execute(Op *op);                   // consume the src registers and write back the dst registers
-void reg_file_recover(Counter recovery_op_num);  // flush registers of misprediction operands
-void reg_file_commit(Op *op);                    // release the previous register with same architectural register id
+void reg_file_init(void);                     // init the register file and its register map tables
+Flag reg_file_available(uns stage_op_count);  // check if there are enough register entries
+void reg_file_rename(Op *op);                 // alloc destination registers for the operand
+Flag reg_file_issue(Op *op);                  // check the op before being issued into the FU
+void reg_file_execute(Op *op);                // consume the src registers and write back the dst registers
+void reg_file_recover(Op *op);                // flush registers of misprediction operands
+void reg_file_commit(Op *op);                 // release the previous register with same architectural register id
 
 #endif /* #ifndef __MAP_RENAME_H__ */
