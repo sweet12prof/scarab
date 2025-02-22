@@ -197,6 +197,10 @@ struct PredictorStates {
   bool AltConf;           // Set med confidence when 2*|ctr + 1| > 1
   int HitBank;            // index of the bank with the longest history among matching tags in TAGE table
   int AltBank;            // index of the bank with 2nd longest history among matching tags in TAGE table
+  // We are using on-path history as a seed for MYRANDOM() to ensure deterministic behavior.
+  // Using both on/off-path history info should not change entropy of MYRANDOM() substantially
+  int on_path_ptghist;
+  long long on_path_phist;
 
   // regular pointer incurs Segmentation fault + automatic memory management
   std::unique_ptr<int[]> GI;     // hashed index set for gtable
@@ -457,6 +461,8 @@ class TAGE64K {
   bool GetPrediction(UINT64 PC, int* bp_confidence, Op* op);
   void HistoryUpdate(UINT64 PC, OpType opType, bool taken, UINT64 target, long long& X, int& Y, cbp64_folded_history* H,
                      cbp64_folded_history* G, cbp64_folded_history* J);
+  void SavePredictorStates();
+  Counter KeyGeneration(bool offpath);
   int GetBrtypeFromOptype(OpType opType);
   void UpdatePredictor(UINT64 PC, OpType opType, bool resolveDir, bool predDir, UINT64 branchTarget);
   int Gpredict(UINT64 PC, long long BHIST, int* length, int8_t** tab, int NBR, int logs, int8_t* W);
