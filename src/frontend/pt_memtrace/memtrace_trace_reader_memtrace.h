@@ -30,7 +30,9 @@
 
 #include "frontend/pt_memtrace/memtrace_trace_reader.h"
 
-// #include "instrument.h"
+#undef ASSERT
+#undef UNUSED
+
 #include "analyzer.h"
 #include "raw2trace.h"
 #include "raw2trace_directory.h"
