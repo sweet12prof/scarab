@@ -191,6 +191,31 @@ static inline void reg_file_extract_arch_reg_id(Op *op) {
   }
 }
 
+static inline void reg_file_collect_rename_stat(Op *op) {
+  ASSERT(op->proc_id, op != &invalid_op);
+
+  STAT_EVENT(map_data->proc_id, MAP_STAGE_RENAME_OP_ONPATH + op->off_path);
+
+  for (uns ii = 0; ii < op->table_info->num_dest_regs; ++ii) {
+    int reg_type = reg_file_get_reg_type(op->inst_info->dests[ii].id);
+    if (reg_type == REG_FILE_REG_TYPE_OTHER)
+      continue;
+
+    switch (reg_type) {
+      case REG_FILE_REG_TYPE_GENERAL_PURPOSE:
+        STAT_EVENT(map_data->proc_id, MAP_STAGE_RENAME_INT_REG_ONPATH + op->off_path);
+        break;
+
+      case REG_FILE_REG_TYPE_VECTOR:
+        STAT_EVENT(map_data->proc_id, MAP_STAGE_RENAME_VEC_REG_ONPATH + op->off_path);
+        break;
+
+      default:
+        break;
+    }
+  }
+}
+
 static inline void reg_file_collect_entry_stat(struct reg_table_entry *entry) {
   if (entry->op_num == 0)
     return;
@@ -1432,6 +1457,7 @@ Flag reg_file_available(uns stage_op_count) {
 void reg_file_rename(Op *op) {
   ASSERT(0, REG_RENAMING_SCHEME >= REG_RENAMING_SCHEME_INFINITE && REG_RENAMING_SCHEME < REG_RENAMING_SCHEME_NUM);
   reg_renaming_scheme_func_table[REG_RENAMING_SCHEME].rename(op);
+  reg_file_collect_rename_stat(op);
 }
 
 /*
