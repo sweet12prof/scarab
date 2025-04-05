@@ -53,6 +53,8 @@ typedef struct Node_Stage_struct {
   Op* node_precommit;  // the pre-commit pointer in the ROB
   int32 node_count;    // number of ops in the node table
 
+  Flag prev_op_fusable;  // if the next dispatched op is macro-fusable
+
   /* linked-list of ops that are ready to schedule. Ops are put in here when they are issued,
    * or after they are issued and another op wakes them up. */
   Op* rdy_head;
