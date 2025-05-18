@@ -1,3 +1,33 @@
+# Generally Follow the Guide But at the time of this fork there were issues with my build i had to do some rough patches
+System: 
+I tried Ubuntu intitially and had errors, i thought i probably needed to stick faithfully to the gcc/g++ version, installing old gcc/g++ was giving me a headache when i tried building from source 
+1. RHEL 7
+2. g++ 7.3, clang 5.0.2, gcc 7.3 according to the actual guide requirements
+
+## Issues i patched
+1. I was getting errors on a construct Dynamorio was using, i believe this may have being due to a recent change that is not faithful to the C/C++ standard specified in scarab's makefiles.
+   - I modified the construct to what is required by the old standard. This is in scarab/src/deps/dynamorio/clients/drcachesim/common/trace_entry.h.
+  
+3. Scarab uses boost libraries(they used a multi index container somewhere that is not provided by stock STL), i had to install libbbost, if u have it by default should not be a problem.
+4. There is an issue with the multi container used by scarab, i had to do a rough patch that may not be consistent with the original intent of the authors. 
+   - The multi index container records as entry a PredictorEntry object
+   - PredictorEntry class has  member object Predictor States among other data members. 
+   - PredictorStates deletes its copy constructor but retains its move constructor, this is so because it has unique_ptr member objects and thus is not copyable by default.
+   - Since PredictorStates is not copyable, PredictorEntry isnt copyable too. 
+   - The multiindex container from boost is utilised to create a table with PredictorEntry object entries.
+   - The insert function of the container is used to add new elments but it seems, internally the insert function uses the copy constructor of the template its instantiated with, in this case PredictorEntry
+   - Since PredictorEntry is not copy constructible, the boost container throws exceptions and thus the tool wont build
+   - The error can be resolved by definning a copy constructor for predictorStates and some minor edits to the constructor of PredictorEntry, which i do in this fork
+   - While the unique_ptr object compels only move operations it could be that it was intentionally used to optimise away the overhead of copying during checkpointing of the predictor
+   - In that case a more critical look of the logic is required to make things work while maintaining the move sematics
+   - If checkpointing was not the intent but rather, the error is induced by the unique_ptr only and defining a copy constructor wont break the desired the functionality then my solution suffices.
+   - In path scarab/src/bp/cbp_tagescl_64k.h
+5. In scarab/src/libs/cache_lib.c, line 1515 had to define RRIP_M as a symbolic constant cos it was declared intitially as const and used to evaluate another const static variable, it seems the standard does not allow this. 
+6. In scarab/src/node_issue_queue.cc, line 187 and 192 had to make some minor edits, remove braces of the rhs value 
+7. My distro does not provide snappy-devel(libsnappy) and libconfig++ thus the build failed to link this unless they were provided as git submodules that can be installed by the command git submodules init I had to install them manually and add add them to the linker path.
+8. **All the above issues may be due to wrongly listed requirements to build scarab, in which case there was no problem with the source code to being with**
+
+
 # Scarab Quick Start Guide
 Install:
 1. Install exact PIN version ([PIN 3.15](https://www.intel.com/content/www/us/en/developer/articles/tool/pin-a-binary-instrumentation-tool-downloads.html))
