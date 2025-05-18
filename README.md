@@ -26,7 +26,7 @@ I tried Ubuntu intitially and had errors, i thought i probably needed to stick f
 5. In scarab/src/libs/cache_lib.c, line 1515 had to define RRIP_M as a symbolic constant cos it was declared intitially as const and used to evaluate another const static variable, it seems the standard does not allow this. 
 6. In scarab/src/node_issue_queue.cc, line 187 and 192 had to make some minor edits, remove braces of the rhs value 
 7. My distro does not provide snappy-devel(libsnappy) and libconfig++ thus the build failed to link this unless they were provided as git submodules that can be installed by the command git submodules init I had to install them manually and add add them to the linker path.
-8. **All the above issues may be due to wrongly listed requirements to build scarab, in which case there was no problem with the source code to being with**
+8. **All the above issues may be due to wrongly listed requirements to build scarab or default compiler arguments, in which case there was no problem with the source code to being with**
 
 
 # Scarab Quick Start Guide
