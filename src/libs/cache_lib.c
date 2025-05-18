@@ -1512,7 +1512,7 @@ Cache_Entry* nru_update_evict(Cache* cache, uns8 proc_id, uns set, uns* way, voi
 
 /**************************************************************************************/
 /* RRIP: SRRIP, BRRIP, DRRIP */
-const static uns8 RRIP_M = 2;
+#define RRIP_M  2
 const static uns8 RRIP_DISTANT_VAL = (1 << RRIP_M) - 1;
 
 /**************************************************************************************/
