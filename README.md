@@ -3,6 +3,7 @@ System:
 I tried Ubuntu intitially and had errors, i thought i probably needed to stick faithfully to the gcc/g++ version, installing old gcc/g++ was giving me a headache when i tried building from source 
 1. RHEL 7
 2. g++ 7.3, clang 5.0.2, gcc 7.3 according to the actual guide requirements
+3. My pc crashed several times when building on the latest version of ubuntu, i dont know why 
 
 ## Issues i patched
 1. I was getting errors on a construct Dynamorio was using, i believe this may have being due to a recent change that is not faithful to the C/C++ standard specified in scarab's makefiles.
