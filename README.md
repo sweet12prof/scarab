@@ -9,12 +9,12 @@ I tried Ubuntu intitially and had errors, i thought i probably needed to stick f
 1. I was getting errors on a construct Dynamorio was using, i believe this may have being due to a recent change that is not faithful to the C/C++ standard specified in scarab's makefiles.
    - I modified the construct to what is required by the old standard. This is in scarab/src/deps/dynamorio/clients/drcachesim/common/trace_entry.h.
   
-3. Scarab uses boost libraries(they used a multi index container somewhere that is not provided by stock STL), i had to install libbbost, if u have it by default should not be a problem.
+2. Scarab uses boost libraries(they used a multi index container somewhere that is not provided by stock STL), i had to install libbbost, if u have it by default should not be a problem.
 
-**Not sure about the 4, 5, 6, the source files work fine when i built in ubuntu 18.04 without necessitating this refactor, i believe it has to do with the version of libbost, 
+**Not sure about the 3, 4, 5, the source files work fine when i built in ubuntu 18.04 without necessitating this refactor, i believe it has to do with the version of libbost, 
 i think newer libboost versions enforce the rules that  trigger this error, the libboost that ships with ubuntu 18.04 doesnot have this error**
 
-4. There is an issue with the multi container used by scarab, i had to do a rough patch that may not be consistent with the original intent of the authors. 
+3. There is an issue with the multi container used by scarab, i had to do a rough patch that may not be consistent with the original intent of the authors. 
    - The multi index container records as entry a PredictorEntry object
    - PredictorEntry class has  member object Predictor States among other data members. 
    - PredictorStates deletes its copy constructor but retains its move constructor, this is so because it has unique_ptr member objects and thus is not copyable by default.
@@ -27,14 +27,13 @@ i think newer libboost versions enforce the rules that  trigger this error, the 
    - In that case a more critical look of the logic is required to make things work while maintaining the move sematics
    - If checkpointing was not the intent but rather, the error is induced by the unique_ptr only and defining a copy constructor wont break the desired the functionality then my solution suffices.
    - In path scarab/src/bp/cbp_tagescl_64k.h
-5. In scarab/src/libs/cache_lib.c, line 1515 had to define RRIP_M as a symbolic constant cos it was declared intitially as const and used to evaluate another const static variable, it seems the standard does not allow this. 
-6. In scarab/src/node_issue_queue.cc, line 187 and 192 had to make some minor edits, remove braces of the rhs value 
+4. In scarab/src/libs/cache_lib.c, line 1515 had to define RRIP_M as a symbolic constant cos it was declared intitially as const and used to evaluate another const static variable, it seems the standard does not allow this. 
+5. In scarab/src/node_issue_queue.cc, line 187 and 192 had to make some minor edits, remove braces of the rhs value 
 
 
 
-7. My distro does not provide snappy-devel(libsnappy) and libconfig++ thus the build failed to link this unless they were provided as git submodules that can be installed by the command git submodules init I had to install them manually and add add them to the linker path.
-8. **Apparently it all comes down building scarab in an environent that matches the initial build, in that case the failures are trivial to fix.**
-9. scarab requires, libbost, cmake, libsnappy-dev and libconfig-dev. In addition build in Ubuntu 18.04, have gcc/g++ 7.4 and clang 5/6 for the best results
+6. **Apparently it all comes down building scarab in an environent that matches the initial build, in that case the failures are trivial to fix.**
+7. scarab requires, libbost, cmake, libsnappy-dev and libconfig-dev. In addition build in Ubuntu 18.04, have gcc/g++ 7.4 and clang 5/6 for the best results
 
 
 # Scarab Quick Start Guide
