@@ -11,8 +11,9 @@ I tried Ubuntu intitially and had errors, i thought i probably needed to stick f
   
 3. Scarab uses boost libraries(they used a multi index container somewhere that is not provided by stock STL), i had to install libbbost, if u have it by default should not be a problem.
 
-**Not sure about 4, the source files work fine when i built in ubuntu 18.04 without necessitating this refactor, i believe it has to do with the version of libbost, 
+**Not sure about the 4, 5, 6, the source files work fine when i built in ubuntu 18.04 without necessitating this refactor, i believe it has to do with the version of libbost, 
 i think newer libboost versions enforce the rules that  trigger this error, the libboost that ships with ubuntu 18.04 doesnot have this error**
+
 4. There is an issue with the multi container used by scarab, i had to do a rough patch that may not be consistent with the original intent of the authors. 
    - The multi index container records as entry a PredictorEntry object
    - PredictorEntry class has  member object Predictor States among other data members. 
