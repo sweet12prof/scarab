@@ -10,6 +10,9 @@ I tried Ubuntu intitially and had errors, i thought i probably needed to stick f
    - I modified the construct to what is required by the old standard. This is in scarab/src/deps/dynamorio/clients/drcachesim/common/trace_entry.h.
   
 3. Scarab uses boost libraries(they used a multi index container somewhere that is not provided by stock STL), i had to install libbbost, if u have it by default should not be a problem.
+
+**Not sure about 4, the source files work fine when i built in ubuntu 18.04 without necessitating this refactor, i believe it has to do with the version of libbost, 
+i think newer libboost versions enforce the rules that  trigger this error, the libboost that ships with ubuntu 18.04 doesnot have this error**
 4. There is an issue with the multi container used by scarab, i had to do a rough patch that may not be consistent with the original intent of the authors. 
    - The multi index container records as entry a PredictorEntry object
    - PredictorEntry class has  member object Predictor States among other data members. 
@@ -25,8 +28,12 @@ I tried Ubuntu intitially and had errors, i thought i probably needed to stick f
    - In path scarab/src/bp/cbp_tagescl_64k.h
 5. In scarab/src/libs/cache_lib.c, line 1515 had to define RRIP_M as a symbolic constant cos it was declared intitially as const and used to evaluate another const static variable, it seems the standard does not allow this. 
 6. In scarab/src/node_issue_queue.cc, line 187 and 192 had to make some minor edits, remove braces of the rhs value 
+
+
+
 7. My distro does not provide snappy-devel(libsnappy) and libconfig++ thus the build failed to link this unless they were provided as git submodules that can be installed by the command git submodules init I had to install them manually and add add them to the linker path.
-8. **All the above issues may be due to wrongly listed requirements to build scarab or default compiler arguments, in which case there was no problem with the source code to being with**
+8. **Apparently it all comes down building scarab in an environent that matches the initial build, in that case the failures are trivial to fix.**
+9. scarab requires, libbost, cmake, libsnappy-dev and libconfig-dev. In addition build in Ubuntu 18.04, have gcc/g++ 7.4 and clang 5/6 for the best results
 
 
 # Scarab Quick Start Guide
