@@ -52,6 +52,7 @@
 
 #include "decoupled_frontend.h"
 #include "exec_ports.h"
+#include "lsq.h"
 #include "map.h"
 #include "map_rename.h"
 #include "node_issue_queue.h"
@@ -419,6 +420,16 @@ void node_fill_rob(Stage_Data* src_sd) {
     if (!op)
       continue;
 
+    if (op->table_info->mem_type == MEM_LD || op->table_info->mem_type == MEM_ST) {
+      if (!lsq_available(op)) {
+        STAT_EVENT(op->proc_id, LSQ_FULL_TOTAL);
+        STAT_EVENT(op->proc_id, LSQ_FULL_TOTAL + op->table_info->mem_type);
+        return;
+      }
+
+      lsq_dispatch(op);
+    }
+
     ASSERT(node->proc_id, node->proc_id == op->proc_id);
     /* check if it's a synchronizing op that can't issue  */
     if ((op->table_info->bar_type & BAR_ISSUE) && (node->node_count > 0))
@@ -653,6 +664,10 @@ void node_retire() {
     reg_file_commit(op);
 
     node_precommit_retire(op);
+
+    if (op->table_info->mem_type == MEM_LD || op->table_info->mem_type == MEM_ST) {
+      lsq_commit(op);
+    }
 
     if (model->op_retired_hook)
       model->op_retired_hook(op);
