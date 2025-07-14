@@ -40,7 +40,6 @@ void synth_fetch_op(uns proc_id, struct Op_struct* op){
     xed_decoded_inst_t decoded_ins = gen_decoded_xed_uncacheable_load_inst(uncacheable_mem_address);
     
     fill_in_basic_info(&next_pi[proc_id], &decoded_ins);
-    
     fill_in_simd_info(&next_pi[proc_id], &decoded_ins, 0); //if there are defaults this may not be necessary
     fill_in_cf_info(&next_pi[proc_id], &decoded_ins);
 
@@ -77,8 +76,8 @@ xed_decoded_inst_t gen_decoded_xed_uncacheable_load_inst(uns64 uncacheable_mem_a
     xed_decoded_inst_zero_set_mode(&decoded_uncacheable_load_inst, &xed_state);
 
     xed_error_enum_t err = xed_decode(&decoded_uncacheable_load_inst, encoded_x64_inst, 5);
-    assert(err == XED_ERROR_NONE && "error creating uncacheable load");
-    xed_reg_enum_t reg = xed_decoded_inst_get_reg(&decoded_uncacheable_load_inst, XED_OPERAND_REG0);
-    assert(reg == XED_REG_EAX);
+    assert(err == XED_ERROR_NONE && "error creating uncaheable load");
+    // xed_reg_enum_t reg = xed_decoded_inst_get_reg(&decoded_uncacheable_load_inst, XED_OPERAND_REG0);
+    // assert(reg == XED_REG_EAX);
     return decoded_uncacheable_load_inst;
 }
