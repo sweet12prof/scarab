@@ -4,6 +4,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+struct Op_struct;
 
 void synth_init();
 void synth_done();
@@ -12,7 +13,7 @@ void synth_done();
 /*Front End Interface*/
 Addr synth_next_fetch_addr(uns proc_id);
 Flag synth_can_fetch_op(uns proc_id);
-void synth_fetch_op(uns proc_id, struct Op_struct* op);
+void synth_fetch_op(uns proc_id, Op* op);
 void synth_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr);
 void synth_recover(uns proc_id, uns64 inst_uid);
 void synth_retire(uns proc_id, uns64 inst_uid);
