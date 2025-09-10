@@ -183,18 +183,4 @@ inline ctype_pin_inst create_dummy_nop(uint64_t eip, Wrongpath_Nop_Mode_Reason r
   inst.fake_inst_reason = reason;
   return inst;
 }
-
-inline ctype_pin_inst create_dummy_nop2(uint64_t eip, Wrongpath_Nop_Mode_Reason reason, uint8_t size) {
-  ctype_pin_inst inst;
-  memset(&inst, 0, sizeof(inst));
-  inst.instruction_addr = eip;
-  inst.instruction_next_addr = eip + 2;
-  inst.size = size;
-  inst.op_type = OP_NOP;
-  strcpy(inst.pin_iclass, "DUMMY_NOP");
-  inst.fake_inst = 1;
-  inst.fake_inst_reason = reason;
-  return inst;
-}
-
 #endif
