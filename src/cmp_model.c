@@ -60,6 +60,7 @@
 #include "op_pool.h"
 #include "sim.h"
 #include "statistics.h"
+#include "topdown.h"
 #include "uop_queue_stage.h"
 
 /**************************************************************************************/
@@ -304,6 +305,7 @@ void cmp_done() {
 /* cmp_done: */
 
 void cmp_per_core_done(uns8 proc_id) {
+  topdown_done(proc_id);
   stats_per_core_collect(proc_id);
   if (PREF_FRAMEWORK_ON)
     pref_per_core_done(proc_id);
@@ -365,6 +367,8 @@ void cmp_recover() {
      * is resolved when executed. */
     op->oracle_info.recovery_sch = FALSE;
   }
+
+  topdown_bp_recovery(bp_recovery_info->proc_id, bp_recovery_info->recovery_op);
 
   reg_file_recover(bp_recovery_info->recovery_op);
   recover_thread(td, bp_recovery_info->recovery_fetch_addr, bp_recovery_info->recovery_op_num,
