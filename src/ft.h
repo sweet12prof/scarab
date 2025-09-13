@@ -55,6 +55,7 @@ FT_Info ft_get_ft_info(FT* ft);
 #ifdef __cplusplus
 
 // C++-only includes
+#include <functional>
 #include <vector>
 
 #include "globals/global_defs.h"
@@ -63,19 +64,50 @@ FT_Info ft_get_ft_info(FT* ft);
 #include "decoupled_frontend.h"
 
 // C++ class definition
+enum FT_Event {
+  FT_EVENT_NONE,
+  FT_EVENT_MISPREDICT,
+  FT_EVENT_FETCH_BARRIER,
+  FT_EVENT_OFFPATH_TAKEN_REDIRECT,
+  // ... add more as needed
+};
+
+struct FT_PredictResult {
+  uint64_t index;
+  FT_Event event;
+  Op* op;          // Optionally, if DFE needs to know which op
+  Addr pred_addr;  // Optionally, if DFE needs the predicted address
+};
+
 class FT {
  public:
   FT(uns _proc_id = 0);
-  void set_ft_started_by(FT_Started_By ft_started_by);
-  void add_op(Op* op, FT_Ended_By ft_ended_by);
+  void add_op(Op* op);
   void free_ops_and_clear();
   bool can_fetch_op();
   Op* fetch_op();
-  void set_per_op_ft_info();
-  FT_Info get_ft_info();
+  FT_Info get_ft_info() const;
   bool is_consumed();
   void set_consumed();
+
   std::vector<Op*>& get_ops();
+
+  // Change return type to FT_BuildResult
+  bool build(std::function<bool(uns8)> can_fetch_op_fn, std::function<bool(uns8, Op*)> fetch_op_fn, bool off_path,
+             uint64_t start_op_num);
+
+  FT_PredictResult predict_ft();
+  std::pair<bool, FT> split_ft(uns split_index);
+
+  Op* get_last_op() const;
+  Op* get_first_op() const;
+  Addr get_start_addr() const;
+  bool is_consecutive(const FT& previous_ft) const;
+  size_t get_size() const { return ops.size(); }  // Check if FT exists/is valid
+  bool ended_by_exit() const { return ft_info.dynamic_info.ended_by == FT_APP_EXIT; }
+  bool ended() const { return ft_info.dynamic_info.ended_by != FT_NOT_ENDED; }  // Check if FT exists/is valid
+  FT_Ended_By get_end_reason() const;
+  void clear_recovery_info();
 
  private:
   uns proc_id;
@@ -83,6 +115,9 @@ class FT {
   FT_Info ft_info;
   std::vector<Op*> ops;
   bool consumed;
+  FT_Event predict_one_cf_op(Op* op);
+  void validate() const;
+  void generate_ft_info();
 
   friend class Decoupled_FE;
 };
