@@ -69,6 +69,7 @@
 
 #define DEBUG_NODE_WIDTH ISSUE_WIDTH
 #define OP_IS_IN_RS(op) (op->state >= OS_IN_RS && op->state < OS_SCHEDULED)
+//#define PRINT_INFO
 
 /**************************************************************************************/
 /* Global Variables */
@@ -242,6 +243,9 @@ void flush_window() {
         ASSERT(op->proc_id, node->rs[op->rs_id].rs_op_count > 0);
         node->rs[op->rs_id].rs_op_count--;
       }
+      #ifdef PRINT_INFO
+        printf("Flushed op num %lld at op addr %lld \n", op->op_num, op->inst_info->addr);
+      #endif
       free_op(op);
     } else {
       /* Keep op */

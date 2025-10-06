@@ -18,9 +18,21 @@ void synth_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr);
 void synth_recover(uns proc_id, uns64 inst_uid);
 void synth_retire(uns proc_id, uns64 inst_uid);
 
+// enum class
+typedef enum BottleNeck_Id_enum {
+  #define BOTTLENECK_IMPL(id, name) id, 
+  #include "bottlenecks_table.def"
+  #undef BOTTLENECK_IMPL
+  INVALID
+} BottleNeck_enum;
+
+extern const char * bottleneckNames[];
+
+extern BottleNeck_enum bottleneck;
 
 #ifdef __cplusplus
 }
 #endif
+
 
 #endif

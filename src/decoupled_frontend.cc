@@ -18,7 +18,7 @@
 #include "thread.h"
 
 #include "confidence/conf.hpp"
-
+//#define PRINT_INFO
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_DECOUPLED_FE, ##args)
 
 class Decoupled_FE {
@@ -431,6 +431,9 @@ void Decoupled_FE::update() {
     }
 
     current_ft_to_push.add_op(op, ft_ended_by);
+    #ifdef PRINT_INFO
+      std::cout << " Op aaded to FTQ addr " << op->inst_info->addr  << " cycle number " << cycle_count << " op number " << op->op_num << std::endl;
+    #endif
     // ft_ended_by != FT_NOT_ENDED indicates the end of the current fetch target
     // it is now ready to be pushed to the queue
     if (ft_ended_by != FT_NOT_ENDED) {
@@ -453,6 +456,7 @@ void Decoupled_FE::update() {
         }
       }
       ftq.emplace_back(current_ft_to_push);
+
       if (CONFIDENCE_ENABLE) {
         conf->update(current_ft_to_push);
       }
@@ -482,6 +486,7 @@ void Decoupled_FE::update() {
       ASSERT(proc_id, recovery_addr == op->inst_info->addr);
       recovery_addr = 0;
     }
+          op->predict_cycle = cycle_count;  // (new)
   }
 }
 

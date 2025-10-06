@@ -88,6 +88,7 @@ void pipeview_print_op(struct Op_struct* op) {
 
   FILE* file = files[op->proc_id];
   print_header(file, op);
+  print_event(file, op, "ftq_insert", op->predict_cycle); //(new)
   if (op->off_path) {
     print_event(file, op, "fetch_offpath", op->fetch_cycle);
   } else {
@@ -146,6 +147,6 @@ void print_event(FILE* file, Op* op, const char* name, Counter cycle) {
 /* print_header: */
 
 void print_header(FILE* file, Op* op) {
-  fprintf(file, "%s:new:%lld:%llx:%d:%lld:%s\n", PREFIX, op->fetch_cycle, op->inst_info->addr, 0,
+  fprintf(file, "%s:new:%lld:%lld:%d:%lld:%s\n", PREFIX, op->fetch_cycle, op->inst_info->addr, 0,
           op->unique_num_per_proc, disasm_op(op, TRUE));
 }

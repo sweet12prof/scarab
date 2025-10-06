@@ -54,6 +54,7 @@ the program.  This way, an exact duplicate run can be performed.
 
 #include "bp/bp.h"
 #include "frontend/frontend_intf.h"
+#include "frontend/synth_fe.h"
 
 #include "model.h"
 #include "sim.h"
@@ -313,6 +314,21 @@ void get_frontend_param(const char* name, uns* variable) {
 
     for (ii = 0; frontend_table[ii].name; ii++)
       if (strncmp(optarg, frontend_table[ii].name, MAX_STR_LENGTH) == 0) {
+        *variable = ii;
+        return;
+      }
+    FATAL_ERROR(0, "Invalid value ('%s') for parameter '%s' --- Ignored.\n", optarg, name);
+  } else
+    FATAL_ERROR(0, "Parameter '%s' missing value --- Ignored.\n", name);
+}
+
+
+void get_bottleneck_param(const char* name, uns* variable){
+    if (optarg) {
+    uns ii;
+
+    for (ii = 0;  bottleneckNames[ii]; ii++)
+      if (strncmp(optarg, bottleneckNames[ii], MAX_STR_LENGTH) == 0) {
         *variable = ii;
         return;
       }

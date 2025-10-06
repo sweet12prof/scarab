@@ -166,6 +166,7 @@ struct Op_struct {
   Counter pred_cycle;
   Counter precommit_cycle;  // cycle when the op is precommit (will eventually retire)
   Counter decode_cycle;     // cycle when decode completes
+  Counter predict_cycle;    //cycle when an op is added to the ftq (new)
   // }}}
 
   // {{{ path and fetch info
