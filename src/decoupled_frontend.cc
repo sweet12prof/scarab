@@ -426,9 +426,15 @@ void Decoupled_FE::update() {
         ft_ended_by = FT_ICACHE_LINE_BOUNDARY;
       }
 
+      //std::cout << " ending by " << ft_ended_by << std::endl;
       bytes_this_cycle += op->inst_info->trace_info.inst_size;
       cfs_taken_this_cycle += cf_taken || bar_fetch;
+
+      if(FRONTEND == 2 && BOTTLENECK == 4 && op->table_info->cf_type)
+      ASSERT(proc_id, end_of_icache_line==TRUE);
     }
+
+    
 
     current_ft_to_push.add_op(op, ft_ended_by);
     #ifdef PRINT_INFO
