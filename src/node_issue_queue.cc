@@ -56,6 +56,7 @@ extern "C" {
 
 int64 node_dispatch_find_emptiest_rs(Op*);
 void node_schedule_oldest_first_sched(Op*);
+void node_track_fu_idle_stats();
 
 /**************************************************************************************/
 /* Issuers:
@@ -166,6 +167,9 @@ void node_schedule_oldest_first_sched(Op* op) {
 
   /* Did not find an empty slot or a slot that is younger than me, do nothing */
   if (youngest_slot_op_id == NODE_ISSUE_QUEUE_FU_SLOT_INVALID) {
+    // Track statistics for ready ops that couldn't be issued
+    STAT_EVENT(node->proc_id, RS_OP_READY_NOT_ISSUED_TOTAL);
+    STAT_EVENT(node->proc_id, RS_0_OP_READY_NOT_ISSUED + (op->rs_id < 8 ? op->rs_id : 8));
     return;
   }
 
@@ -338,6 +342,53 @@ void node_issue_queue_schedule() {
             op->engine_info.l1_miss);
 
       schedule_func_table[NODE_ISSUE_QUEUE_SCHEDULE_SCHEME](op);
+    }
+  }
+  // Track statistics for idle FUs when no ready ops are available
+  node_track_fu_idle_stats();
+}
+
+/**************************************************************************************/
+/* FU idle tracking function */
+/*
+ * Track statistics for FUs that are idle when no ready ops are available
+ * This function checks each FU to see if it's idle and whether there are
+ * ready ops that could potentially be executed on it.
+ */
+void node_track_fu_idle_stats(void) {
+  extern Exec_Stage* exec;  // Access to FUs through exec stage
+
+  // Create ready_type vector for each RS to track which op types have ready ops
+  uns64 ready_type_per_rs[NUM_RS] = {0};
+
+  // Iterate over ready ops and set bits in ready_type corresponding to FU_TYPE of each op
+  for (Op* op = node->rdy_head; op; op = op->next_rdy) {
+    if ((op->state == OS_READY || op->state == OS_WAIT_FWD) && cycle_count >= op->rdy_cycle - 1) {
+      uns64 op_fu_type = get_fu_type(op->table_info->op_type, op->table_info->is_simd);
+      ready_type_per_rs[op->rs_id] |= op_fu_type;
+    }
+  }
+
+  // Iterate over FUs and check if FU can handle any ready op types from its connected RS
+  for (uns32 fu_id = 0; fu_id < NUM_FUS; ++fu_id) {
+    // Check if this FU is currently idle (no op scheduled to it and FU is available)
+    if (node->sd.ops[fu_id] != NULL)
+      continue;  // FU has op scheduled to it, skip
+
+    // Also check if the FU itself is available (not held by memory or still busy from previous op)
+    Func_Unit* fu = &exec->fus[fu_id];
+    if (fu->avail_cycle > cycle_count || fu->held_by_mem)
+      continue;  // FU is not available, skip
+
+    // FU is available - use global mapping to find connected RS
+    int32 rs_id = node->fu_to_rs_map[fu_id];
+    ASSERT(0, rs_id != NODE_ISSUE_QUEUE_RS_SLOT_INVALID);
+
+    // Check if this FU can handle any ready op types from its connected RS
+    if ((ready_type_per_rs[rs_id] & fu->type) == 0) {
+      STAT_EVENT(node->proc_id, FU_IDLE_NO_READY_OPS_TOTAL);
+      // Per-FU counter for idle cycles with no ready ops
+      STAT_EVENT(node->proc_id, FU_0_IDLE_NO_READY_OPS + (fu_id < 32 ? fu_id : 32));
     }
   }
 }
