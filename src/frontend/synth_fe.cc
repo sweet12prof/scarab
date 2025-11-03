@@ -476,5 +476,4 @@ void gen_addr() {
 
 void shuffleAddrs() {
   std::rotate(btbAddresses.rbegin(), btbAddresses.rbegin() + 1, btbAddresses.rend());
-  // std::rotate(btbAddresses.begin(), btbAddresses.begin() + 1, btbAddresses.end());
 }
