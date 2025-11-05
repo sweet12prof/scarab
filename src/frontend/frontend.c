@@ -73,12 +73,10 @@ void frontend_init() {
       trace_init();
       break;
     }
-
     case FE_SYNTHETIC: {
       synth_init();
       break;
     }
-
 #ifdef ENABLE_PT_MEMTRACE
     case FE_PT:
     case FE_MEMTRACE: {
@@ -102,12 +100,10 @@ void frontend_done(Flag* retired_exit) {
       trace_done();
       break;
     }
-
     case FE_SYNTHETIC:{
       synth_done();
       break;
     }
-    
 #ifdef ENABLE_PT_MEMTRACE
     case FE_PT:
     case FE_MEMTRACE: {
