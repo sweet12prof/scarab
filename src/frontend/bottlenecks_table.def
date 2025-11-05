@@ -1,3 +1,4 @@
+// Format: enum name, text name, function name prefix
 BOTTLENECK_IMPL(MEM_LATENCY_LIMITED,        "mem_latency_limited")
 BOTTLENECK_IMPL(MEM_BANDWIDTH_LIMITED,      "mem_bandwidth_limited")
 BOTTLENECK_IMPL(ILP_LIMITED,                "ilp_limited")

@@ -8,11 +8,10 @@ extern "C" {
 
 #include "debug/debug.param.h"
 #include "debug/debug_macros.h"
+#include "debug/debug_print.h"
 
 #include "bp/bp.param.h"
 #include "memory/memory.param.h"
-
-#include "isa/isa.h"
 }
 
 #include <algorithm>
@@ -24,10 +23,12 @@ extern "C" {
 #include <vector>
 
 #include "bp/bp.h"
+// #include "isa/isa.h"
 #include "pin/pin_lib/uop_generator.h"
 
 #include "ctype_pin_inst.h"
-//#define PRINT_INFO
+
+#define PRINT_INFO
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_SYNTHETIC_INST, ##args)
 // #define NOP_SIZE ICACHE_LINE_SIZE / (ISSUE_WIDTH)
 // #define BRANCH_SIZE ICACHE_LINE_SIZE - (NOP_SIZE * (ISSUE_WIDTH - 1))
@@ -38,30 +39,30 @@ const char* bottleneckNames[] = {
 #include "bottlenecks_table.def"
 #undef BOTTLENECK_IMPL
     "invalid"};
+BottleNeck_enum bottleneck;
 
 // intrinsic frontend variables
-uint NOP_SIZE;
-uint BRANCH_SIZE;
-ctype_pin_inst next_onpath_pi[MAX_NUM_PROCS];
-ctype_pin_inst next_offpath_pi[MAX_NUM_PROCS];
-bool off_path_mode[MAX_NUM_PROCS] = {false};
-uint64_t off_path_addr[MAX_NUM_PROCS] = {0};
-bool loopback_btb[MAX_NUM_PROCS] = {false};
-BottleNeck_enum bottleneck;
-ctype_pin_inst dummyinst = {};
+static uint NOP_SIZE;
+static uint BRANCH_SIZE;
+static ctype_pin_inst next_onpath_pi[MAX_NUM_PROCS];
+static ctype_pin_inst next_offpath_pi[MAX_NUM_PROCS];
+static bool off_path_mode[MAX_NUM_PROCS] = {false};
+static uint64_t off_path_addr[MAX_NUM_PROCS] = {0};
+static bool loopback_btb[MAX_NUM_PROCS] = {false};
+static ctype_pin_inst dummyinst = {};
 
 // For generting Random branch targets and branch directions
-const uint64_t start_pc{256};
-uint64_t start_uid{1000};
-uint64_t tgtAddr{0};
-const uint64_t start_ld_vaddr{0xf800000};
-uint64_t ld_vaddr{start_ld_vaddr};
-bool direction{false};
-std::vector<uint64_t> btbAddresses;
-uint64_t btbaddrs_index_count{0};
-std::mt19937_64 engine(1234);
-std::uniform_int_distribution<uint64_t> dist64{0, std::numeric_limits<uint64_t>::max()};
-std::bernoulli_distribution distBool(0.5);
+static const uint64_t start_pc{256};
+static uint64_t start_uid{1000};
+static uint64_t tgtAddr{0};
+static const uint64_t start_ld_vaddr{0xf800000};
+static uint64_t ld_vaddr{start_ld_vaddr};
+static bool direction{false};
+static std::vector<uint64_t> btbAddresses;
+static uint64_t btbaddrs_index_count{0};
+static std::mt19937_64 engine(1234);
+static std::uniform_int_distribution<uint64_t> dist64{0, std::numeric_limits<uint64_t>::max()};
+static std::bernoulli_distribution distBool(0.5);
 void gen_addr();
 void shuffleAddrs();
 uns cf_count = 0;
@@ -80,8 +81,8 @@ void synth_init() {
   bottleneck = static_cast<BottleNeck_enum>(BOTTLENECK);
   uop_generator_init(NUM_CORES);
   gen_addr();
-  NOP_SIZE     = ICACHE_LINE_SIZE/ISSUE_WIDTH;
-  BRANCH_SIZE  = ICACHE_LINE_SIZE - (NOP_SIZE * (ISSUE_WIDTH - 1));
+  NOP_SIZE = ICACHE_LINE_SIZE / ISSUE_WIDTH;
+  BRANCH_SIZE = ICACHE_LINE_SIZE - (NOP_SIZE * (ISSUE_WIDTH - 1));
 
   std::cout << "Simulating synthetic " << bottleneckNames[BOTTLENECK] << " bottleneck" << std::endl;
   std::cout << " NOP SIZE " << NOP_SIZE << " BRANCH SIZE " << BRANCH_SIZE << std::endl;
@@ -106,19 +107,20 @@ Flag synth_can_fetch_op(uns proc_id) {
 }
 
 void synth_fetch_op(uns proc_id, Op* op) {
-#ifdef PRINT_INFO
-  ctype_pin_inst next_pi = off_path_mode[proc_id] ? next_offpath_pi[proc_id] : next_onpath_pi[proc_id];
-  std::cout << " ip " << next_pi.instruction_addr << " Next " << next_pi.instruction_next_addr << " size "
-            << (uint32_t)next_pi.size << " target " << next_pi.branch_target << " size " << (uint32_t)next_pi.size
-            << " taken " << (uint32_t)next_pi.actually_taken << " cycle count " << cycle_count << " cf_count "
-            << cf_count << std::endl;
-#endif
   if (uop_generator_get_bom(proc_id)) {
     if (!off_path_mode[proc_id]) {
       uop_generator_get_uop(proc_id, op, &next_onpath_pi[proc_id]);
     } else {
       uop_generator_get_uop(proc_id, op, &next_offpath_pi[proc_id]);
     }
+    #ifdef PRINT_INFO
+        ctype_pin_inst next_pi = off_path_mode[proc_id] ? next_offpath_pi[proc_id] : next_onpath_pi[proc_id];
+        std::cout  << disasm_op(op, TRUE) << ": ip " << next_pi.instruction_addr << " Next " << next_pi.instruction_next_addr << " size "
+                  << (uint32_t)next_pi.size << " target " << next_pi.branch_target << " size " << (uint32_t)next_pi.size
+                  << " taken " << (uint32_t)next_pi.actually_taken << std::endl;
+        if(cf_count == 0)
+                std::cout << std::endl;
+    #endif
   } else {
     uop_generator_get_uop(proc_id, op, NULL);
   }
@@ -141,13 +143,13 @@ void synth_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr) {
   off_path_addr[proc_id] = fetch_addr;
   dummyinst = generatesyntheticInstr(proc_id, bottleneck, fetch_addr, ++dummyinst.inst_uid);
   next_offpath_pi[proc_id] = dummyinst;
-  DEBUG(proc_id, "Redirect on-path:%lx off-path:%lx", next_onpath_pi[proc_id].instruction_addr,
-        next_offpath_pi[proc_id].instruction_addr);
-#ifdef PRINT_INFO
-  std::cout << " Redirect happened here predicted bp addr is " << fetch_addr << std::endl;
-  // std::cout << "Redirect happened at " << cycle_count << " cycles " << std::endl;
-#endif
-    cf_count = 1;
+  DEBUG(proc_id, "Redirect on-path:%lx off-path:%lx", next_onpath_pi[proc_id].instruction_addr, next_offpath_pi[proc_id].instruction_addr);
+
+  #ifdef PRINT_INFO
+    std::cout << "Redirect happened here predicted addr:  " << fetch_addr ;
+  #endif
+  
+  cf_count = 1;
 }
 
 void synth_recover(uns proc_id, uns64 inst_uid) {
@@ -206,30 +208,30 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
 
     case BRANCH_PREDICTOR_LIMITED: {
       ctype_pin_inst inst;
-        if (cf_count == ISSUE_WIDTH - 1) {
-          if (ip > 1200) {
-            inst = create_btb_limited(ip, uid, start_pc);
-            tgtAddr = start_pc;
-            cf_count = 0;
-          } else {
-            tgtAddr = ip + 64 + BRANCH_SIZE;
-            inst = create_bp_limited(ip, uid, tgtAddr, direction);
-            cf_count = 0;
-          }
-
+      if (cf_count == ISSUE_WIDTH - 1) {
+        if (ip > 1200) {
+          inst = create_btb_limited(ip, uid, start_pc);
+          tgtAddr = start_pc;
+          cf_count = 0;
         } else {
-          inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-          inst.size = NOP_SIZE;
-          inst.instruction_next_addr = ip + NOP_SIZE;
-          cf_count++;
-          inst.fake_inst = 1;
+          tgtAddr = ip + 256 + BRANCH_SIZE;
+          inst = create_bp_limited(ip, uid, tgtAddr, direction);
+          cf_count = 0;
         }
-        direction = distBool(engine);  // randomize direction for next time conditional branch to be generated
+
+      } else {
+        inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
+        inst.size = NOP_SIZE;
+        inst.instruction_next_addr = ip + NOP_SIZE;
+        cf_count++;
+        inst.fake_inst = 0;
+      }
+      direction = distBool(engine);  // randomize direction for next time conditional branch to be generated
       return inst;
     }
 
     case BTB_LIMITED: {
-     ctype_pin_inst inst;
+      ctype_pin_inst inst;
       if (!off_path_mode[proc_id]) {
         if (cf_count == ISSUE_WIDTH - 1) {
           if (btbaddrs_index_count == 2 * TC_ASSOC) {
@@ -237,9 +239,9 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
             btbaddrs_index_count = 0;
             cf_count = 0;
           } else {
-             inst = create_btb_limited(ip, uid, btbAddresses[btbaddrs_index_count]);
-              btbaddrs_index_count++;
-              cf_count = 0;    
+            inst = create_btb_limited(ip, uid, btbAddresses[btbaddrs_index_count]);
+            btbaddrs_index_count++;
+            cf_count = 0;
           }
         } else {
           inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
@@ -332,9 +334,9 @@ ctype_pin_inst create_latencyBound(uint64_t ip, uint64_t uid) {
   inst.is_move = 1;
   inst.has_immediate = 0;
   inst.num_ld1_addr_regs = 1;
-  inst.ld1_addr_regs[0] = Reg_Id::REG_RAX;
-  inst.num_dst_regs = 1;
-  inst.dst_regs[0] = Reg_Id::REG_RAX;
+  // inst.ld1_addr_regs[0] = Reg_Id::REG_RAX;
+  // inst.num_dst_regs = 1;
+  // inst.dst_regs[0] = Reg_Id::REG_RAX;
   inst.ld_vaddr[0] = (dist64(engine) % 0x800000000000);
   inst.num_ld = 1;
   inst.num_st = 0;
@@ -357,9 +359,9 @@ ctype_pin_inst create_bandwidthBound(uint64_t ip, uint64_t uid, uint64_t vaddr) 
   inst.is_move = 1;
   inst.has_immediate = 0;
   inst.num_ld1_addr_regs = 1;
-  inst.ld1_addr_regs[0] = Reg_Id::REG_RBX;
-  inst.num_dst_regs = 1;
-  inst.dst_regs[0] = Reg_Id::REG_RAX;
+  // inst.ld1_addr_regs[0] = Reg_Id::REG_RBX;
+  // inst.num_dst_regs = 1;
+  // inst.dst_regs[0] = Reg_Id::REG_RAX;
   inst.ld_vaddr[0] = (vaddr % 0x800000000000);
   inst.num_ld = 1;
   inst.num_st = 0;
@@ -381,9 +383,9 @@ ctype_pin_inst create_ILP_limited(uint64_t ip, uint64_t uid) {
   inst.lane_width_bytes = 1;
   inst.num_src_regs = 2;
   inst.num_dst_regs = 1;
-  inst.src_regs[0] = Reg_Id::REG_RAX;
-  inst.src_regs[1] = Reg_Id::REG_RBX;
-  inst.dst_regs[0] = Reg_Id::REG_RAX;
+  // inst.src_regs[0] = Reg_Id::REG_RAX;
+  // inst.src_regs[1] = Reg_Id::REG_RBX;
+  // inst.dst_regs[0] = Reg_Id::REG_RAX;
   return inst;
 }
 
@@ -436,9 +438,9 @@ ctype_pin_inst create_icache_limited(uint64_t ip, uint64_t uid) {
   inst.lane_width_bytes = 1;
   inst.num_src_regs = 2;
   inst.num_dst_regs = 1;
-  inst.src_regs[0] = Reg_Id::REG_RAX;
-  inst.src_regs[1] = Reg_Id::REG_RBX;
-  inst.dst_regs[0] = Reg_Id::REG_RCX;
+  // inst.src_regs[0] = Reg_Id::REG_RAX;
+  // inst.src_regs[1] = Reg_Id::REG_RBX;
+  // inst.dst_regs[0] = Reg_Id::REG_RCX;
   return inst;
 }
 
@@ -458,7 +460,7 @@ ctype_pin_inst create_indirect_jmp(uint64_t ip, uint64_t uid, uint64_t tgtAddr, 
   inst.fake_inst = 0;
   inst.num_src_regs = 1;
   inst.num_ld1_addr_regs = 1;
-  inst.ld1_addr_regs[0] = REG_RAX;
+  // inst.ld1_addr_regs[0] = REG_RAX;
   inst.num_ld = 1;
   inst.ld_vaddr[0] = vaddr % 0x800000000000;  // ensure its in unprivileged space
   strcpy(inst.pin_iclass, "DUMMY_JMP");

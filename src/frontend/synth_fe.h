@@ -26,8 +26,7 @@ typedef enum BottleNeck_Id_enum {
   INVALID
 } BottleNeck_enum;
 
-extern const char *bottleneckNames[];
-
+extern const char * bottleneckNames[];
 extern BottleNeck_enum bottleneck;
 
 #ifdef __cplusplus

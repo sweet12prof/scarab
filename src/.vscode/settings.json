@@ -4,6 +4,8 @@
         "thread": "cpp",
         "synth_fe.h": "c",
         "typeinfo": "c",
-        "chrono": "c"
+        "chrono": "c",
+        "trace_fe.h": "c",
+        "regex": "c"
     }
 }
