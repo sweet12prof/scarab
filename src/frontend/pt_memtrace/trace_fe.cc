@@ -27,12 +27,16 @@
 
 #include "debug/debug.param.h"
 #include "debug/debug_macros.h"
+extern "C" {
+#include "debug/debug_print.h"
+}
 // #include "globals/global_defs.h"
 // #include "globals/global_types.h"
 // #include "globals/global_vars.h"
 // #include "globals/utils.h"
 // #include "globals/global_types.h"
 
+#define PRINT_INFO
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_TRACE_READ, ##args)
 
 /* Globals */
@@ -238,6 +242,14 @@ void ext_trace_fetch_op(uns proc_id, Op *op) {
       uop_generator_get_uop(proc_id, op, &next_offpath_pi[proc_id]);
       op->exit = false;
     }
+
+     #ifdef PRINT_INFO
+        ctype_pin_inst next_pi = off_path_mode[proc_id] ? next_offpath_pi[proc_id] : next_onpath_pi[proc_id];
+        std::cout  << disasm_op(op, TRUE) << ": ip " << next_pi.instruction_addr << " Next " << next_pi.instruction_next_addr << " size "
+                  << (uint32_t)next_pi.size << " target " << next_pi.branch_target << " size " << (uint32_t)next_pi.size
+                  << " taken " << (uint32_t)next_pi.actually_taken << std::endl;
+    #endif
+
   } else {
     uop_generator_get_uop(proc_id, op, NULL);
   }
@@ -310,6 +322,10 @@ void ext_trace_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr) {
   off_path_generate_inst(proc_id, &off_path_addr[proc_id], &next_offpath_pi[proc_id]);
   DEBUG(proc_id, "Redirect on-path:%lx off-path:%lx", next_onpath_pi[proc_id].instruction_addr,
         next_offpath_pi[proc_id].instruction_addr);
+
+  #ifdef PRINT_INFO
+    std::cout << "Redirect happened here predicted addr:  " << fetch_addr << std::endl ;
+  #endif
 }
 
 void ext_trace_recover(uns proc_id, uns64 inst_uid) {
