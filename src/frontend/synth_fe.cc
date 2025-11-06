@@ -117,7 +117,7 @@ void synth_fetch_op(uns proc_id, Op* op) {
         ctype_pin_inst next_pi = off_path_mode[proc_id] ? next_offpath_pi[proc_id] : next_onpath_pi[proc_id];
         std::cout  << disasm_op(op, TRUE) << ": ip " << next_pi.instruction_addr << " Next " << next_pi.instruction_next_addr << " size "
                   << (uint32_t)next_pi.size << " target " << next_pi.branch_target << " size " << (uint32_t)next_pi.size
-                  << " taken " << (uint32_t)next_pi.actually_taken << std::endl;
+                  << " taken " << (uint32_t)next_pi.actually_taken << " uid " << next_pi.inst_uid << std::endl;
         if(cf_count == 0)
                 std::cout << std::endl;
     #endif
@@ -141,7 +141,7 @@ void synth_fetch_op(uns proc_id, Op* op) {
 void synth_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr) {
   off_path_mode[proc_id] = true;
   off_path_addr[proc_id] = fetch_addr;
-  dummyinst = generatesyntheticInstr(proc_id, bottleneck, fetch_addr, ++dummyinst.inst_uid);
+  dummyinst = generatesyntheticInstr(proc_id, bottleneck, fetch_addr, inst_uid);
   next_offpath_pi[proc_id] = dummyinst;
   DEBUG(proc_id, "Redirect on-path:%lx off-path:%lx", next_onpath_pi[proc_id].instruction_addr, next_offpath_pi[proc_id].instruction_addr);
 
@@ -208,6 +208,7 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
         inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
         inst.size = NOP_SIZE;
         inst.instruction_next_addr = ip + NOP_SIZE;
+        inst.inst_uid = uid;
         cf_count++;
         inst.fake_inst = 0;
       }
@@ -231,6 +232,7 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
           inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
           inst.size = NOP_SIZE;
           inst.instruction_next_addr = ip + NOP_SIZE;
+          inst.inst_uid = uid;
           cf_count++;
         }
       return inst;
