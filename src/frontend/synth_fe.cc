@@ -146,7 +146,7 @@ void synth_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr) {
   DEBUG(proc_id, "Redirect on-path:%lx off-path:%lx", next_onpath_pi[proc_id].instruction_addr, next_offpath_pi[proc_id].instruction_addr);
 
   #ifdef PRINT_INFO
-    std::cout << "Redirect happened here predicted addr:  " << fetch_addr ;
+    std::cout << "Redirect happened here predicted addr:  " << fetch_addr << std::endl ;
   #endif
   
   cf_count = 1;
@@ -161,7 +161,6 @@ void synth_recover(uns proc_id, uns64 inst_uid) {
   }
   DEBUG(proc_id, "Recover CF:%lx ", next_onpath_pi[proc_id].instruction_addr);
 #ifdef PRINT_INFO
-  // std::cout << " Recovery happended here " << std::endl;
   std::cout << " Recover happened at " << cycle_count << " cycle " << std::endl;
 #endif
 }
@@ -173,36 +172,22 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
   switch (bottleneck_type) {
     case MEM_BANDWIDTH_LIMITED: {
       ctype_pin_inst inst;
-      if (!off_path_mode[proc_id]) {
         if (ip >= 2000) {
           inst = create_btb_limited(ip, uid, start_pc);
           ld_vaddr = start_ld_vaddr;
         } else {
           inst = create_bandwidthBound(ip, uid, ld_vaddr);
           ld_vaddr += 8;
-        }
-      } else {
-        inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-        inst.size = 16;
-        inst.instruction_next_addr = ip + 16;
-        cf_count++;
       }
       return inst;
     }
 
     case MEM_LATENCY_LIMITED: {
       ctype_pin_inst inst;
-      if (!off_path_mode[proc_id]) {
         if (ip >= 2000) {
           inst = create_btb_limited(ip, uid, start_pc);
         } else
           inst = create_latencyBound(ip, uid);
-      } else {
-        inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-        inst.size = 16;
-        inst.instruction_next_addr = ip + 16;
-        cf_count++;
-      }
       return inst;
     }
 
@@ -214,7 +199,7 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
           tgtAddr = start_pc;
           cf_count = 0;
         } else {
-          tgtAddr = ip + 256 + BRANCH_SIZE;
+          tgtAddr = ip + 64 + BRANCH_SIZE;
           inst = create_bp_limited(ip, uid, tgtAddr, direction);
           cf_count = 0;
         }
@@ -232,7 +217,6 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
 
     case BTB_LIMITED: {
       ctype_pin_inst inst;
-      if (!off_path_mode[proc_id]) {
         if (cf_count == ISSUE_WIDTH - 1) {
           if (btbaddrs_index_count == 2 * TC_ASSOC) {
             inst = create_btb_limited(ip, uid, start_pc);
@@ -249,12 +233,6 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
           inst.instruction_next_addr = ip + NOP_SIZE;
           cf_count++;
         }
-      } else {
-        inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-        inst.size = NOP_SIZE;
-        inst.instruction_next_addr = ip + NOP_SIZE;
-      }
-
       return inst;
     }
 
@@ -396,7 +374,7 @@ ctype_pin_inst create_bp_limited(uint64_t ip, uint64_t uid, uint64_t tgtAddr, bo
   inst.instruction_addr = ip;
   inst.instruction_next_addr = direction ? tgtAddr : (ip + BRANCH_SIZE);
   inst.size = BRANCH_SIZE;
-  inst.op_type = OP_CF;
+  inst.op_type = OP_IADD;
   inst.cf_type = CF_CBR;
   inst.num_simd_lanes = 1;
   inst.lane_width_bytes = 1;
