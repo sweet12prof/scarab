@@ -45,7 +45,7 @@
 #include "sim.h"
 #include "statistics.h"
 #include "thread.h"
-#include "synth_fe.h"
+#include "frontend/synthetic/synth_fe.h"
 
 #ifdef ENABLE_PT_MEMTRACE
 #include "frontend/pt_memtrace/trace_fe.h"

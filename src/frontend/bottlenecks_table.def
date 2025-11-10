@@ -1,8 +1,0 @@
-// Format: enum name, text name, function name prefix
-BOTTLENECK_IMPL(MEM_LATENCY_LIMITED,        "mem_latency_limited")
-BOTTLENECK_IMPL(MEM_BANDWIDTH_LIMITED,      "mem_bandwidth_limited")
-BOTTLENECK_IMPL(ILP_LIMITED,                "ilp_limited")
-BOTTLENECK_IMPL(BRANCH_PREDICTOR_LIMITED,   "cbr_limited")
-BOTTLENECK_IMPL(BTB_LIMITED,                "btb_limited")
-BOTTLENECK_IMPL(ICACHE_LIMITED,             "icache_limited")
-BOTTLENECK_IMPL(INDIRECT_BRANCH_LIMITED,    "ibr_limited")
