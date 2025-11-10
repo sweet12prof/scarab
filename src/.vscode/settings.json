@@ -6,6 +6,8 @@
         "typeinfo": "c",
         "chrono": "c",
         "trace_fe.h": "c",
-        "regex": "c"
+        "regex": "c",
+        "iostream": "cpp",
+        "limits": "cpp"
     }
 }

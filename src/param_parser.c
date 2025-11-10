@@ -54,7 +54,7 @@ the program.  This way, an exact duplicate run can be performed.
 
 #include "bp/bp.h"
 #include "frontend/frontend_intf.h"
-#include "frontend/synth_fe.h"
+#include "frontend/synthetic/synthetic_kernels.h"
 
 #include "model.h"
 #include "sim.h"
