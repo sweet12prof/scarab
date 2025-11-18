@@ -330,9 +330,6 @@ bool FT::is_consecutive(const FT& previous_ft) const {
       matches = (end_addr == start_addr);
       break;
   }
-
-  //std::cout << "ASSERTION: Last_op " << disasm_op(previous_ft.get_last_op();
-  std::cout << "ASSERTION: Last_op " << disasm_op(previous_ft.get_last_op(), TRUE) << " ft_ended_by: " << prev_end_type << " end_addr " << end_addr << " start_addr " << start_addr << std::endl;  
   return matches;
 }
 
