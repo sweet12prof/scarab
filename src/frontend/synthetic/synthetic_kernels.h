@@ -15,10 +15,10 @@ typedef enum BottleNeck_Id_enum {
 } BottleNeck_enum;
 
 // top_level function to generate synthetic workload
-ctype_pin_inst generate_synthetic_microkernel(uns, BottleNeck_enum, uns64, uns64);  
+ctype_pin_inst generate_synthetic_microkernel(uns, BottleNeck_enum, uns64, uns64, bool);  
 
 // Very basic One Line Instructions
-ctype_pin_inst generate_loop_carried_dependence_load(uns64, uns64);            //for latency limited workload       
+ctype_pin_inst generate_loop_carried_dependence_load(uns64, uns64, uns64);            //for latency limited workload       
 ctype_pin_inst generate_independent_operand_load(uns64, uns64, uns64 );        //for bandwidth limited workload, normal load no dependences
 ctype_pin_inst generate_conditional_branch(uns64, uns64, uns64, bool, uns8);
 ctype_pin_inst generate_unconditional_branch(uns64, uns64, uns64, uns8);

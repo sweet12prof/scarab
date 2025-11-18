@@ -12,19 +12,14 @@ extern "C" {
 #include "bp/bp.param.h"
 #include "memory/memory.param.h"
 }
-
 #include <iostream>
-
 #include "bp/bp.h"
 #include "frontend/synthetic/synth_fe.h"
 #include "frontend/synthetic/synthetic_kernels.h"
 #include "pin/pin_lib/uop_generator.h"
-
 #include "ctype_pin_inst.h"
-
-#define PRINT_INFO
+//#define PRINT_INFO
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_SYNTHETIC_INST, ##args)
-
 // intrinsic frontend variables
 static uint NOP_SIZE;
 static uint BRANCH_SIZE;
@@ -51,14 +46,13 @@ void synth_init() {
 
   std::cout << "Simulating synthetic " << bottleneckNames[BOTTLENECK] << " bottleneck" << std::endl;
   std::cout << " NOP SIZE " << NOP_SIZE << " BRANCH SIZE " << BRANCH_SIZE << std::endl;
-  dummyinst = generate_synthetic_microkernel(0, bottleneck, synth_start_pc, synth_start_uid);
+  dummyinst = generate_synthetic_microkernel(0, bottleneck, synth_start_pc, synth_start_uid, false);
 
   for (uns proc_id{0}; proc_id < NUM_CORES; proc_id++) {
     next_onpath_pi[proc_id] = dummyinst;
     // generate initial instruction for other cores if any
     if ((proc_id + 1) != NUM_CORES)
-      dummyinst = generate_synthetic_microkernel(proc_id, bottleneck, dummyinst.instruction_next_addr,
-                                                 ++dummyinst.inst_uid);
+      dummyinst = generate_synthetic_microkernel(proc_id, bottleneck, dummyinst.instruction_next_addr, ++dummyinst.inst_uid, false);
   }
 }
 
@@ -85,7 +79,7 @@ void synth_fetch_op(uns proc_id, Op* op) {
     std::cout << disasm_op(op, TRUE) << ": ip " << next_pi.instruction_addr << " Next " << next_pi.instruction_next_addr
               << " size " << (uint32_t)next_pi.size << " target " << next_pi.branch_target << " size "
               << (uint32_t)next_pi.size << " taken " << (uint32_t)next_pi.actually_taken << " uid " << next_pi.inst_uid
-              << std::endl;
+              << " uid " << next_pi.inst_uid <<" cf_count " <<  cf_count << std::endl;
     if(cf_count == 0)
         std::cout << std::endl;
 #endif
@@ -96,11 +90,11 @@ void synth_fetch_op(uns proc_id, Op* op) {
   if (uop_generator_get_eom(proc_id)) {
     if (!off_path_mode[proc_id]) {
       dummyinst = generate_synthetic_microkernel(proc_id, bottleneck, next_onpath_pi[proc_id].instruction_next_addr,
-                                                 ++dummyinst.inst_uid);
+                                                 ++dummyinst.inst_uid, off_path_mode[proc_id]);
       next_onpath_pi[proc_id] = dummyinst;
     } else {
       dummyinst = generate_synthetic_microkernel(proc_id, bottleneck, next_offpath_pi[proc_id].instruction_next_addr,
-                                                 ++dummyinst.inst_uid);
+                                                 ++dummyinst.inst_uid, off_path_mode[proc_id]);
       next_offpath_pi[proc_id] = dummyinst;
     }
   }
@@ -110,7 +104,7 @@ void synth_redirect(uns proc_id, uns64 inst_uid, Addr fetch_addr) {
   off_path_mode[proc_id] = true;
   off_path_addr[proc_id] = fetch_addr;
   dummyinst =
-      generate_synthetic_microkernel(proc_id, bottleneck, fetch_addr, inst_uid);
+      generate_synthetic_microkernel(proc_id, bottleneck, fetch_addr, inst_uid, off_path_mode[proc_id]);
   next_offpath_pi[proc_id] = dummyinst;
   DEBUG(proc_id, "Redirect on-path:%lx off-path:%lx", next_onpath_pi[proc_id].instruction_addr,
         next_offpath_pi[proc_id].instruction_addr);
@@ -133,6 +127,7 @@ void synth_recover(uns proc_id, uns64 inst_uid) {
 #ifdef PRINT_INFO
   std::cout << " Recover happened at " << cycle_count << " cycle " << std::endl;
 #endif
+  cf_count = 1;
 }
 
 void synth_retire(uns proc_id, uns64 inst_uid) {
