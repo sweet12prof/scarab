@@ -220,7 +220,7 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
     case BRANCH_PREDICTOR_LIMITED: {
       ctype_pin_inst inst;
       if (cf_count == ISSUE_WIDTH - 1) {
-        if (ip > 1200) {
+        if (ip >= 1256) {
           inst = create_btb_limited(ip, uid, start_pc);
           tgtAddr = start_pc;
           cf_count = 0;
@@ -275,7 +275,7 @@ ctype_pin_inst generatesyntheticInstr(uns proc_id, BottleNeck_enum bottleneck_ty
               cf_count = 0;
             } else {
               if(off_path_mode[proc_id])
-                inst = create_btb_limited(ip, uid, ip);
+                 inst = create_indirect_jmp(ip, uid, btbAddresses[distBool(engine)], start_ld_vaddr);
               else 
                 inst = create_indirect_jmp(ip, uid, btbAddresses[distBool(engine)], start_ld_vaddr);
               cf_count = 0;
@@ -466,10 +466,11 @@ ctype_pin_inst create_indirect_jmp(uint64_t ip, uint64_t uid, uint64_t tgtAddr, 
 
 // generate and shuffle synthetic indirect jump addresses
 void gen_addr() {
-  uint64_t i{start_pc + 2048};
+  uint64_t i{0};
+  i = bottleneck == BTB_LIMITED ? start_pc + 2048 : start_pc + 128;
   for (uint64_t j{0}; j < BTB_ENTRIES; j++) {
     btbAddresses.push_back(i);
-    i += 2048;
+    i = bottleneck == BTB_LIMITED ? i + 2048 : i + 128;
   }
 }
 
