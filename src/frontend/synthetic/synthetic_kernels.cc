@@ -87,8 +87,8 @@ ctype_pin_inst generate_cbr_limited_microkernel(uns64 ip, uns64 uid, bool offpat
   if (!offpath) {
     inst = lock_issue_packet_to_icache_boundary(ip, uid, [&]() -> ctype_pin_inst {
       if (ip >= loopback_ip) {
-        return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
         tgtAddr = synth_start_pc;
+        return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
       } else {
         tgtAddr = ip + ICACHE_LINE_SIZE + BRANCH_SIZE;
         return generate_conditional_branch(ip, uid, tgtAddr, direction, BRANCH_SIZE);
