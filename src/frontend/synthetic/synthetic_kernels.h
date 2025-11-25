@@ -23,7 +23,7 @@ ctype_pin_inst generate_synthetic_microkernel(uns, BottleNeck_enum, uns64, uns64
 
 /************************** Microkernels*****************************************************/ 
 ctype_pin_inst create_ILP_limited_microkernel(uns64, uns64, bool);
-ctype_pin_inst generate_icache_limited_microkernel(uns64, uns64, uns8, bool);
+ctype_pin_inst generate_icache_limited_microkernel(uns64, uns64, bool);
 ctype_pin_inst generate_mem_latency_limited_microkernel(uns64, uns64, bool);
 ctype_pin_inst generate_mem_bandwidth_limited_microkernel(uns64, uns64, bool);
 ctype_pin_inst generate_cbr_limited_microkernel(uns64, uns64, bool);
@@ -92,6 +92,25 @@ inline ctype_pin_inst  generate_alu_type_inst(uns64 ip, uns64 uid, uns8 inst_siz
   inst.src_regs[0] = REG_RAX;
   inst.src_regs[1] = REG_RBX;
   inst.dst_regs[0] = REG_RAX;
+  return inst;
+}
+
+inline ctype_pin_inst  generate_no_dependence_alu_type_inst(uns64 ip, uns64 uid, uns8 inst_size) {
+  ctype_pin_inst inst;
+  memset(&inst, 0, sizeof(inst));
+  inst.inst_uid = uid;
+  inst.instruction_addr = ip;
+  inst.instruction_next_addr = ip + inst_size;
+  inst.size = inst_size;
+  inst.op_type = OP_IADD;
+  strcpy(inst.pin_iclass, "DUMMY_IADD");
+  inst.num_simd_lanes = 1;
+  inst.lane_width_bytes = 1;
+  inst.num_src_regs = 2;
+  inst.num_dst_regs = 1;
+  inst.src_regs[0] = REG_RAX;
+  inst.src_regs[1] = REG_RBX;
+  inst.dst_regs[0] = REG_RCX;
   return inst;
 }
 

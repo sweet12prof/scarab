@@ -9,7 +9,6 @@
 #define NOP_SIZE ICACHE_LINE_SIZE / (ISSUE_WIDTH)
 #define BRANCH_SIZE ICACHE_LINE_SIZE - (NOP_SIZE * (ISSUE_WIDTH - 1))
 #define LOAD_SIZE 8
-#define ICACHE_LIMITED_INST_SIZE ICACHE_LINE_SIZE
 #define ADD_SIZE 8
 #define WORKLOAD_LENGTH 1000
 
@@ -63,7 +62,7 @@ ctype_pin_inst generate_synthetic_microkernel(uns proc_id, BottleNeck_enum bottl
     case BTB_LIMITED:
       return generate_btb_limited_microkernel(ip, uid, offpath);
     case ICACHE_LIMITED:
-      return generate_icache_limited_microkernel(ip, uid, ICACHE_LIMITED_INST_SIZE, offpath);
+      return generate_icache_limited_microkernel(ip, uid, offpath);
     case IBR_LIMITED:
       return generate_ibr_limited_microkernel(ip, uid, proc_id, offpath);
     case ILP_LIMITED:
@@ -168,15 +167,15 @@ ctype_pin_inst create_ILP_limited_microkernel(uns64 ip, uns64 uid, bool offpath)
   return inst;
 }
 
-ctype_pin_inst generate_icache_limited_microkernel(uns64 ip, uns64 uid, uns8 inst_size, bool offpath) {
+ctype_pin_inst generate_icache_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
   if (!offpath) {
-    accumulated_workload_size += inst_size;
-    if (inst_size >= ICACHE_SIZE) {
+    if (accumulated_workload_size >= 2*ICACHE_SIZE) {
       accumulated_workload_size = 0;
-      return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
+      return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, 64);
     }
+    accumulated_workload_size += 64;
   }
-  return generate_alu_type_inst(ip, uid, ADD_SIZE);
+  return generate_no_dependence_alu_type_inst(ip, uid, 64);
 }
 
 ctype_pin_inst generate_btb_assoc_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
