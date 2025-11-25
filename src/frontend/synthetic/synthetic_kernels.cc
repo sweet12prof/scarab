@@ -1,356 +1,215 @@
-#include "frontend/synthetic/synthetic_kernels.h"
-
+#include <algorithm>
 #include <iostream>
 #include <random>
 
 #include "bp/bp.param.h"
 #include "memory/memory.param.h"
-
-#include "isa/isa.h"
+#include "frontend/synthetic/synthetic_kernels.h"
 
 #define NOP_SIZE ICACHE_LINE_SIZE / (ISSUE_WIDTH)
 #define BRANCH_SIZE ICACHE_LINE_SIZE - (NOP_SIZE * (ISSUE_WIDTH - 1))
+#define LOAD_SIZE 8
+#define ICACHE_LIMITED_INST_SIZE ICACHE_LINE_SIZE
+#define ADD_SIZE 8
+#define WORKLOAD_LENGTH 1000
 
-// names of bottlenecks
+/* Bottleneck name strings */
 const char* bottleneckNames[] = {
 #define BOTTLENECK_IMPL(id, name) name,
 #include "bottlenecks_table.def"
 #undef BOTTLENECK_IMPL
     "invalid"};
+
 BottleNeck_enum bottleneck;
-//
-extern uns64 synth_start_pc;
-extern uns64 synth_start_uid;
-// random Function
+uns64 synth_start_pc{256};
+uns64 synth_start_uid{1000};
+/*Random Geneatation Utilities*/
 static std::mt19937_64 engine(1234);
 static std::uniform_int_distribution<uns64> dist64{1, 0x00007fffffffffff};
 static std::bernoulli_distribution distBool(0.5);
-// mem workloads utilities
-void gen_vaddr();
-void gen_branch_targets();
+/* Helper vars */
+uns cf_count = 0;
 static const uns64 start_ld_vaddr{0xf800000};
 static uns64 ld_vaddr{start_ld_vaddr};
 static std::vector<uns64> vaddr;
-// branch workloads utilities
 static uns64 tgtAddr{0};
 static bool direction{false};
-uns cf_count = 0;
 static std::vector<uns64> branch_targets;
-static uint64_t index_count{0};
+static uns64 index_count{0};
 static bool loopback_ibr[MAX_NUM_PROCS];
+static uns64 accumulated_workload_size{0};
 
-ctype_pin_inst generate_loop_carried_dependence_load(uns64 ip, uns64 uid, uns64 vaddr) {
-  ctype_pin_inst inst;
-  memset(&inst, 0, sizeof(inst));
-  inst.inst_uid = uid;
-  inst.instruction_addr = ip;
-  inst.instruction_next_addr = ip + 7;
-  inst.size = 7;
-  inst.op_type = OP_MOV;
+/********************************************** Utilities **************************************************** */
+void gen_vaddr();
+void gen_branch_targets();
 
-  strcpy(inst.pin_iclass, "SYNTHETIC LOAD");
-  inst.num_simd_lanes = 1;
-  inst.lane_width_bytes = 1;
-  inst.is_move = 1;
+/* The BR workloads are tricky and can induce frontend bandwidth stalls even where every issue paccket is a factor
+of the cache line size, the following function restricts both onpath and offpath issue packets to the length of an
+icache line by ensuring there are some nops preceeding every branch. Moreover it ensures a  branch always ends a
+cache line and the target is the line after the succeeding fall through path/cache line */
+template <typename branch_gen>
+ctype_pin_inst lock_issue_packet_to_icache_boundary(uns64, uns64, branch_gen);
 
-  inst.num_ld1_addr_regs = 1;
-  inst.ld1_addr_regs[0] = Reg_Id::REG_RAX;
-  inst.ld_vaddr[0] = vaddr;
-
-  inst.num_dst_regs = 1;
-  inst.dst_regs[0] = Reg_Id::REG_RAX;
-
-  inst.num_ld = 1;
-  inst.ld_size = 8;
-  return inst;
-}
-
-ctype_pin_inst generate_independent_operand_load(uns64 ip, uns64 uid, uns64 vaddr) {
-  ctype_pin_inst inst;
-  memset(&inst, 0, sizeof(inst));
-  inst.inst_uid = uid;
-  inst.instruction_addr = ip;
-  inst.instruction_next_addr = ip + 7;
-  inst.size = 7;
-  inst.op_type = OP_MOV;
-
-  strcpy(inst.pin_iclass, "SYNTHETIC LOAD");
-  inst.num_simd_lanes = 1;
-  inst.lane_width_bytes = 1;
-  inst.is_move = 1;
-
-  inst.num_ld1_addr_regs = 1;
-  inst.ld1_addr_regs[0] = Reg_Id::REG_RBX;
-  inst.ld_vaddr[0] = vaddr;
-
-  inst.num_dst_regs = 1;
-  inst.dst_regs[0] = Reg_Id::REG_RAX;
-
-  inst.num_ld = 1;
-  inst.num_st = 0;
-  inst.ld_size = 8;
-  return inst;
-}
-
-ctype_pin_inst create_ILP_limited(uns64 ip, uns64 uid) {
-  ctype_pin_inst inst;
-  memset(&inst, 0, sizeof(inst));
-  inst.inst_uid = uid;
-  inst.instruction_addr = ip;
-  inst.instruction_next_addr = ip + 7;
-  inst.size = 7;
-  inst.op_type = OP_IADD;
-  inst.fake_inst = 0;
-  strcpy(inst.pin_iclass, "SYNTHETIC ADD");
-  inst.num_simd_lanes = 1;
-  inst.lane_width_bytes = 1;
-  inst.num_src_regs = 2;
-  inst.num_dst_regs = 1;
-  inst.src_regs[0] = Reg_Id::REG_RAX;
-  inst.src_regs[1] = Reg_Id::REG_RBX;
-  inst.dst_regs[0] = Reg_Id::REG_RAX;
-  return inst;
-}
-
-ctype_pin_inst generate_conditional_branch(uns64 ip, uns64 uid, uns64 tgtAddr, bool direction, uns8 inst_size) {
-  ctype_pin_inst inst;
-  memset(&inst, 0, sizeof(inst));
-  inst.inst_uid = uid;
-  inst.instruction_addr = ip;
-  inst.instruction_next_addr = direction ? tgtAddr : (ip + inst_size);
-  inst.size = inst_size;
-  inst.op_type = OP_IADD;
-  inst.cf_type = CF_CBR;
-  inst.num_simd_lanes = 1;
-  inst.lane_width_bytes = 1;
-  inst.branch_target = tgtAddr;
-  inst.actually_taken = direction ? TAKEN : NOT_TAKEN;
-  inst.fake_inst = 0;
-  return inst;
-}
-
-ctype_pin_inst generate_unconditional_branch(uns64 ip, uns64 uid, uns64 tgt, uns8 inst_size) {
-  ctype_pin_inst inst;
-  memset(&inst, 0, sizeof(inst));
-  inst.instruction_addr = ip;
-  inst.inst_uid = uid;
-  inst.instruction_next_addr = tgt;
-  inst.size = inst_size;
-  inst.op_type = OP_CF;
-  inst.cf_type = CF_BR;
-  inst.num_simd_lanes = 1;
-  inst.lane_width_bytes = 1;
-  inst.branch_target = tgt;
-  inst.actually_taken = TAKEN;
-  inst.fake_inst = 0;
-  strcpy(inst.pin_iclass, "DUMMY_JMP");
-  return inst;
-}
-
-ctype_pin_inst create_icache_limited(uns64 ip, uns64 uid) {
-  ctype_pin_inst inst;
-  memset(&inst, 0, sizeof(inst));
-  inst.instruction_addr = ip;
-  inst.inst_uid = uid;
-  inst.instruction_next_addr = ip + ICACHE_LINE_SIZE;
-  inst.size = ICACHE_LINE_SIZE;
-  inst.op_type = OP_IADD;
-  inst.fake_inst = 0;
-  strcpy(inst.pin_iclass, "SYNTHETIC ADD");
-  inst.num_simd_lanes = 1;
-  inst.lane_width_bytes = 1;
-  inst.num_src_regs = 2;
-  inst.num_dst_regs = 1;
-  inst.src_regs[0] = Reg_Id::REG_RAX;
-  inst.src_regs[1] = Reg_Id::REG_RBX;
-  inst.dst_regs[0] = Reg_Id::REG_RCX;
-  return inst;
-}
-
-ctype_pin_inst generate_indirect_branch(uns64 ip, uns64 uid, uns64 tgtAddr, uns64 vaddr, uns8 inst_size) {
-  ctype_pin_inst inst;
-  memset(&inst, 0, sizeof(inst));
-  inst.instruction_addr = ip;
-  inst.inst_uid = uid;
-  inst.instruction_next_addr = tgtAddr;
-  inst.size = inst_size;
-  inst.op_type = OP_CF;
-  inst.cf_type = CF_IBR;
-  inst.num_simd_lanes = 1;
-  inst.lane_width_bytes = 1;
-  inst.branch_target = tgtAddr;
-  inst.actually_taken = 1;
-
-  inst.num_ld1_addr_regs = 1;
-  inst.ld1_addr_regs[0] = REG_RAX;
-  inst.num_ld = 1;
-
-  inst.ld_vaddr[0] = vaddr;  // ensure its in unprivileged space
-  strcpy(inst.pin_iclass, "DUMMY_JMP");
-  return inst;
-}
-
+/********************************************** Kernel Dispatcher ******************************************** */
 ctype_pin_inst generate_synthetic_microkernel(uns proc_id, BottleNeck_enum bottleneck_type, uns64 ip, uns64 uid,
                                               bool offpath) {
   switch (bottleneck_type) {
-    case MEM_BANDWIDTH_LIMITED: {
-      ctype_pin_inst inst;
-      if (!offpath) {
-        if (ip >= 1256) {
-          inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
-          ld_vaddr = start_ld_vaddr;
-        } else {
-          inst = generate_independent_operand_load(ip, uid, ld_vaddr);
-          ld_vaddr += 8;
-        }
-      } else {
-          inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-          inst.size = NOP_SIZE;
-          inst.instruction_next_addr = ip + NOP_SIZE;
-          inst.inst_uid = uid;
-          cf_count++;
-          inst.fake_inst = 0;
-      }
-      return inst;
-    }
-
-    case MEM_LATENCY_LIMITED: {
-      ctype_pin_inst inst;
-      if (!offpath) {
-        if (ip >= 1256) {
-          inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
-          gen_vaddr();
-          index_count = 0;
-        } else {
-          inst = generate_loop_carried_dependence_load(ip, uid, vaddr[index_count]);
-          index_count++;
-        }
-      } else {
-          inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-          inst.size = NOP_SIZE;
-          inst.instruction_next_addr = ip + NOP_SIZE;
-          inst.inst_uid = uid;
-          cf_count++;
-          inst.fake_inst = 0;
-      }
-      return inst;
-    }
-
-    case BRANCH_PREDICTOR_LIMITED: {
-      ctype_pin_inst inst;
-      if (!offpath) {
-        if (cf_count == ISSUE_WIDTH - 1) {
-          if (ip > 1256) {
-            inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
-            tgtAddr = synth_start_pc;
-            cf_count = 0;
-          } else {
-            tgtAddr = ip + ICACHE_LINE_SIZE + BRANCH_SIZE;
-            inst = generate_conditional_branch(ip, uid, tgtAddr, direction, BRANCH_SIZE);
-            cf_count = 0;
-          }
-        } else {
-          inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-          inst.size = NOP_SIZE;
-          inst.instruction_next_addr = ip + NOP_SIZE;
-          inst.inst_uid = uid;
-          cf_count++;
-          inst.fake_inst = 0;
-        }
-        direction = distBool(engine);  // randomize direction for next time conditional branch to be generated
-      } else {
-        inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-        inst.size = NOP_SIZE;
-        inst.instruction_next_addr = ip + NOP_SIZE;
-        inst.inst_uid = uid;
-        cf_count = 0;
-        inst.fake_inst = 0;
-      }
-      return inst;
-    }
-
-    case BTB_LIMITED: {
-      ctype_pin_inst inst;
-      if (!offpath) {
-        if (cf_count == ISSUE_WIDTH - 1) {
-          if (index_count == 2 * BTB_ASSOC) {
-            inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
-            index_count = 0;
-            cf_count = 0;
-          } else {
-            inst = generate_unconditional_branch(ip, uid, branch_targets[index_count], BRANCH_SIZE);
-            index_count++;
-            cf_count = 0;
-          }
-        } else {
-          inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-          inst.size = NOP_SIZE;
-          inst.instruction_next_addr = ip + NOP_SIZE;
-          inst.inst_uid = uid;
-          inst.fake_inst = 1;
-          cf_count++;
-        }
-      } else {
-        inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-        inst.size = NOP_SIZE;
-        inst.instruction_next_addr = ip + NOP_SIZE;
-        inst.inst_uid = uid;
-        inst.fake_inst = 1;
-        cf_count = 0;
-      }
-      return inst;
-    }
-
+    case MEM_BANDWIDTH_LIMITED:
+      return generate_mem_bandwidth_limited_microkernel(ip, uid, offpath);
+    case MEM_LATENCY_LIMITED:
+      return generate_mem_latency_limited_microkernel(ip, uid, offpath);
+    case CBR_LIMITED:
+      return generate_cbr_limited_microkernel(ip, uid, offpath);
+    case BTB_LIMITED:
+      return generate_btb_limited_microkernel(ip, uid, offpath);
     case ICACHE_LIMITED:
-      return create_icache_limited(ip, uid);
-      break;
-
-    case INDIRECT_BRANCH_LIMITED: {
-      ctype_pin_inst inst;
-      if (cf_count == ISSUE_WIDTH - 1) {
-        if (loopback_ibr[proc_id]) {
-          inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
-          loopback_ibr[proc_id] = false;
-          cf_count = 0;
-        } else {
-          inst = generate_indirect_branch(ip, uid, branch_targets[distBool(engine)], vaddr[index_count], BRANCH_SIZE);
-          cf_count = 0;
-          loopback_ibr[proc_id] = true;
-        }
-      } else {
-        inst = create_dummy_nop(ip, WPNM_REASON_REDIRECT_TO_NOT_INSTRUMENTED);
-        inst.size = NOP_SIZE;
-        inst.instruction_next_addr = ip + NOP_SIZE;
-        inst.inst_uid = uid;
-        cf_count++;
-      }
-      return inst;
-    }
-
-    case ILP_LIMITED: {
-      ctype_pin_inst inst;
-      if (ip >= 1256) {
-        inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
-      } else
-        inst = create_ILP_limited(ip, uid);
-      return inst;
-    }
-
+      return generate_icache_limited_microkernel(ip, uid, ICACHE_LIMITED_INST_SIZE, offpath);
+    case IBR_LIMITED:
+      return generate_ibr_limited_microkernel(ip, uid, proc_id, offpath);
+    case ILP_LIMITED:
+      return create_ILP_limited_microkernel(ip, uid, offpath);
+    case BTB_ASSOCIATIVITY_LIMITED:
+      return generate_btb_assoc_limited_microkernel(ip, uid, offpath);
     default:
       return create_dummy_nop(ip, WPNM_NOT_IN_WPNM);
   }
 }
 
+/********************************************** Kernels ******************************************************* */
+/*
+  The control flow workloads break after the most recent commit, consecutivity assertion in ft.cc fails when the execution
+  goes offpath. This happens when a branch is encountered on the offpath. A workaround so that the workloads can run 
+  is to generate only NOPs until recovery. Once the intial issue is fixed, the CBR kernels should revert to generating the 
+  pattern as seen on the onpath.
+*/
+ctype_pin_inst generate_cbr_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
+  ctype_pin_inst inst;
+  if (!offpath) {
+    inst = lock_issue_packet_to_icache_boundary(ip, uid, [&]() -> ctype_pin_inst {
+      if (ip >= 1256) {
+        return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
+        tgtAddr = synth_start_pc;
+      } else {
+        tgtAddr = ip + ICACHE_LINE_SIZE + BRANCH_SIZE;
+        return generate_conditional_branch(ip, uid, tgtAddr, direction, BRANCH_SIZE);
+      }
+    });
+    direction = distBool(engine);
+  } else
+    return make_nop(ip, uid, NOP_SIZE, false);
+  return inst;
+}
+
+ctype_pin_inst generate_btb_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
+  ctype_pin_inst inst;
+  if (!offpath) {
+    inst = lock_issue_packet_to_icache_boundary(ip, uid, [&]() -> ctype_pin_inst {
+      if (index_count == BTB_ENTRIES + 1) {
+        index_count = 0;
+        std::shuffle(branch_targets.begin(), branch_targets.end(), engine);
+        return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
+      } else {
+        return generate_unconditional_branch(ip, uid, branch_targets[index_count++], BRANCH_SIZE);
+      }
+    });
+  } else
+    return make_nop(ip, uid, NOP_SIZE, false);
+  return inst;
+}
+
+ctype_pin_inst generate_ibr_limited_microkernel(uns64 ip, uns64 uid, uns64 proc_id, bool offpath) {
+  ctype_pin_inst inst;
+  if (!offpath) {
+    inst = lock_issue_packet_to_icache_boundary(ip, uid, [&]() -> ctype_pin_inst {
+      if (loopback_ibr[proc_id]) {
+        loopback_ibr[proc_id] = false;
+        return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
+      } else {
+        loopback_ibr[proc_id] = true;
+        return generate_indirect_branch(ip, uid, branch_targets[distBool(engine)], vaddr[index_count], BRANCH_SIZE);
+      }
+    });
+  } else
+    return make_nop(ip, uid, NOP_SIZE, false);
+  return inst;
+}
+
+ctype_pin_inst generate_mem_latency_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
+  ctype_pin_inst inst;
+  if (!offpath && ip >= 1256) {
+    inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
+    gen_vaddr();
+    index_count = 0;
+  } else {
+    inst = generate_loop_carried_dependence_load(ip, uid, vaddr[index_count], LOAD_SIZE);
+    index_count++;
+  }
+  return inst;
+}
+
+ctype_pin_inst generate_mem_bandwidth_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
+  ctype_pin_inst inst;
+  if (!offpath && ip >= 1256) {
+    inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
+    ld_vaddr = start_ld_vaddr;
+  } else {
+    inst = generate_independent_operand_load(ip, uid, ld_vaddr, LOAD_SIZE);
+    ld_vaddr += 8;
+  }
+  return inst;
+}
+
+ctype_pin_inst create_ILP_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
+  ctype_pin_inst inst;
+  if (!offpath && ip >= 1256) {
+    inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
+  } else
+    inst = generate_alu_type_inst(ip, uid, ADD_SIZE);
+  return inst;
+}
+
+ctype_pin_inst generate_icache_limited_microkernel(uns64 ip, uns64 uid, uns8 inst_size, bool offpath) {
+  if (!offpath) {
+    accumulated_workload_size += inst_size;
+    if (inst_size >= ICACHE_SIZE) {
+      accumulated_workload_size = 0;
+      return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
+    }
+  }
+  return generate_alu_type_inst(ip, uid, ADD_SIZE);
+}
+
+ctype_pin_inst generate_btb_assoc_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
+  ctype_pin_inst inst;
+  if (!offpath) {
+    inst = lock_issue_packet_to_icache_boundary(ip, uid, [&]() -> ctype_pin_inst {
+      if (index_count == 2 * BTB_ASSOC) {
+        index_count = 0;
+        return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
+      } else {
+        return generate_unconditional_branch(ip, uid, branch_targets[index_count++], BRANCH_SIZE);
+      }
+    });
+  } else
+    return make_nop(ip, uid, NOP_SIZE, false);
+  return inst;
+}
+
+/************************************** Utility Definitions ************************************ */
 void gen_branch_targets() {
-  uint64_t i{0};
-  i = bottleneck == BTB_LIMITED ? synth_start_pc + 2048 : synth_start_pc + 128;
-  for (uint64_t j{0}; j < BTB_ENTRIES; j++) {
+  uns64 i{synth_start_pc};
+  for (uns64 j{0}; j < (BTB_ENTRIES + 2048); j++) {
+    i = bottleneck == BTB_ASSOCIATIVITY_LIMITED ? (i + 2048) : (i + 128);
     branch_targets.push_back(i);
-    i = bottleneck == BTB_LIMITED ? i + 2048 : i + 128;
   }
 }
 
 void synthetic_kernel_init() {
+  std::cout << "Simulating synthetic " << bottleneckNames[BOTTLENECK] << " bottleneck" << std::endl;
+#ifdef PRINT_CF_NOP_SIZE_INFO
+  std::cout << " NOP SIZE " << NOP_SIZE << " BRANCH SIZE " << BRANCH_SIZE << std::endl;
+  std::cout << "ICACHE_SIZE " << ICACHE_SIZE << std::endl;
+#endif
   gen_branch_targets();
   gen_vaddr();
 }
@@ -359,4 +218,15 @@ void gen_vaddr() {
   vaddr.clear();
   for (int i{0}; i < 1000; i++)
     vaddr.push_back(dist64(engine));
+}
+
+template <typename branch_gen>  // function template
+ctype_pin_inst lock_issue_packet_to_icache_boundary(uns64 ip, uns64 uid, branch_gen generate_branch) {
+  if (cf_count == ISSUE_WIDTH - 1) {
+    cf_count = 0;
+    return generate_branch();
+  } else {
+    cf_count++;
+    return make_nop(ip, uid, NOP_SIZE, false);
+  }
 }
