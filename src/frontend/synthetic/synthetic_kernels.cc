@@ -38,7 +38,7 @@ static std::vector<uns64> branch_targets;
 static uns64 index_count{0};
 static bool loopback_ibr[MAX_NUM_PROCS];
 static uns64 accumulated_workload_size{0};
-
+static const uns64 loopback_ip{1256};
 /********************************************** Utilities **************************************************** */
 void gen_vaddr();
 void gen_branch_targets();
@@ -86,7 +86,7 @@ ctype_pin_inst generate_cbr_limited_microkernel(uns64 ip, uns64 uid, bool offpat
   ctype_pin_inst inst;
   if (!offpath) {
     inst = lock_issue_packet_to_icache_boundary(ip, uid, [&]() -> ctype_pin_inst {
-      if (ip >= 1256) {
+      if (ip >= loopback_ip) {
         return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
         tgtAddr = synth_start_pc;
       } else {
@@ -136,7 +136,7 @@ ctype_pin_inst generate_ibr_limited_microkernel(uns64 ip, uns64 uid, uns64 proc_
 
 ctype_pin_inst generate_mem_latency_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
   ctype_pin_inst inst;
-  if (!offpath && ip >= 1256) {
+  if (!offpath && ip >= loopback_ip) {
     inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
     gen_vaddr();
     index_count = 0;
@@ -149,7 +149,7 @@ ctype_pin_inst generate_mem_latency_limited_microkernel(uns64 ip, uns64 uid, boo
 
 ctype_pin_inst generate_mem_bandwidth_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
   ctype_pin_inst inst;
-  if (!offpath && ip >= 1256) {
+  if (!offpath && ip >= loopback_ip) {
     inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
     ld_vaddr = start_ld_vaddr;
   } else {
@@ -161,7 +161,7 @@ ctype_pin_inst generate_mem_bandwidth_limited_microkernel(uns64 ip, uns64 uid, b
 
 ctype_pin_inst create_ILP_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
   ctype_pin_inst inst;
-  if (!offpath && ip >= 1256) {
+  if (!offpath && ip >= loopback_ip) {
     inst = generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, BRANCH_SIZE);
   } else
     inst = generate_alu_type_inst(ip, uid, ADD_SIZE);
