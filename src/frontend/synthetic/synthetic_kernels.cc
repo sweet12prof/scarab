@@ -28,7 +28,7 @@ static std::uniform_int_distribution<uns64> dist64{1, 0x00007fffffffffff};
 static std::bernoulli_distribution distBool(0.5);
 /* Helper vars */
 uns cf_count = 0;
-static const uns64 start_ld_vaddr{0xf800000};
+static const uns64 start_ld_vaddr{256};
 static uns64 ld_vaddr{start_ld_vaddr};
 static std::vector<uns64> vaddr;
 static uns64 tgtAddr{0};
@@ -42,10 +42,11 @@ static const uns64 loopback_ip{1256};
 void gen_vaddr();
 void gen_branch_targets();
 
-/* The BR workloads are tricky and can induce frontend bandwidth stalls even where every issue paccket is a factor
-of the cache line size, the following function restricts both onpath and offpath issue packets to the length of an
-icache line by ensuring there are some nops preceeding every branch. Moreover it ensures a  branch always ends a
-cache line and the target is the line after the succeeding fall through path/cache line */
+/* The BR workloads are tricky and can induce frontend bandwidth stalls even where every issue paccket is a    factor
+of the cache line size, the following function restricts both onpath and offpath issue packets to the length   of  an
+icache line by preceeding branches with enough NOPs so that the issue packet equals ICACHE_LINE_SIZE. For a not-taken 
+branch, the next address starts at the immediately following cache line, for a taken branch the next  address      is  
+two cache lines away */
 template <typename branch_gen>
 ctype_pin_inst lock_issue_packet_to_icache_boundary(uns64, uns64, branch_gen);
 
@@ -77,9 +78,9 @@ ctype_pin_inst generate_synthetic_microkernel(uns proc_id, BottleNeck_enum bottl
 /********************************************** Kernels ******************************************************* */
 /*
   The control flow workloads break after the most recent commit, consecutivity assertion in ft.cc fails when the execution
-  goes offpath. This happens when a branch is encountered on the offpath. A workaround so that the workloads can run 
-  is to generate only NOPs until recovery. Once the intial issue is fixed, the CBR kernels should revert to generating the 
-  pattern as seen on the onpath.
+  goes offpath. This happens when a branch(usually situated at an ICACHE_BOUNDARY) is encountered on the offpath. A workaround 
+  so that the workloads can run was to generate only NOPs until recovery. Once the intial issue is fixed, the CBR kernels 
+  should revert to generating the pattern as seen on the onpath.
 */
 ctype_pin_inst generate_cbr_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
   ctype_pin_inst inst;
@@ -153,7 +154,8 @@ ctype_pin_inst generate_mem_bandwidth_limited_microkernel(uns64 ip, uns64 uid, b
     ld_vaddr = start_ld_vaddr;
   } else {
     inst = generate_independent_operand_load(ip, uid, ld_vaddr, LOAD_SIZE);
-    ld_vaddr += 8;
+    //ensure we are always in user space
+    ld_vaddr = (ld_vaddr + 8) %  0x0000800000000000;
   }
   return inst;
 }
