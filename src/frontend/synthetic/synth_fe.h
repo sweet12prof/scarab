@@ -9,7 +9,6 @@ struct Op_struct;
 void synth_init();
 void synth_done();
 
-
 /*Front End Interface*/
 Addr synth_next_fetch_addr(uns proc_id);
 Flag synth_can_fetch_op(uns proc_id);
@@ -21,6 +20,5 @@ void synth_retire(uns proc_id, uns64 inst_uid);
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif

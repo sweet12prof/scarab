@@ -1,27 +1,30 @@
 #ifndef __SYNTHETIC_KERNELS_H__
 #define __SYNTHETIC_KERNELS_H__
-#include "globals/global_types.h"
-#include "ctype_pin_inst.h"
-#include "isa/isa.h"
 #include <stdbool.h>
+
+#include "globals/global_types.h"
+
+#include "isa/isa.h"
+
+#include "ctype_pin_inst.h"
 
 /* Bottleneck Enum */
 typedef enum BottleNeck_Id_enum {
-  #define BOTTLENECK_IMPL(id, name) id, 
-  #include "frontend/synthetic/bottlenecks_table.def"
-  #undef BOTTLENECK_IMPL
+#define BOTTLENECK_IMPL(id, name) id,
+#include "frontend/synthetic/bottlenecks_table.def"
+#undef BOTTLENECK_IMPL
   INVALID
 } BottleNeck_enum;
 
-/************************** Microkernels Init Utilities *************************************/ 
+/************************** Microkernels Init Utilities *************************************/
 void synthetic_kernel_init();
-extern const char * bottleneckNames[];
+extern const char* bottleneckNames[];
 extern BottleNeck_enum bottleneck;
 
 /* top_level dispatccher */
-ctype_pin_inst generate_synthetic_microkernel(uns, BottleNeck_enum, uns64, uns64, bool);  
+ctype_pin_inst generate_synthetic_microkernel(uns, BottleNeck_enum, uns64, uns64, bool);
 
-/************************** Microkernels*****************************************************/ 
+/************************** Microkernels*****************************************************/
 ctype_pin_inst create_ILP_limited_microkernel(uns64, uns64, bool);
 ctype_pin_inst generate_icache_limited_microkernel(uns64, uns64, bool);
 ctype_pin_inst generate_mem_latency_limited_microkernel(uns64, uns64, bool);
@@ -31,7 +34,7 @@ ctype_pin_inst generate_btb_limited_microkernel(uns64, uns64, bool);
 ctype_pin_inst generate_btb_assoc_limited_microkernel(uns64, uns64, bool);
 ctype_pin_inst generate_ibr_limited_microkernel(uns64, uns64, uns64, bool);
 
-/************************** Basic one line instruction Definitions **************************/ 
+/************************** Basic one line instruction Definitions **************************/
 inline ctype_pin_inst generate_loop_carried_dependence_load(uns64 ip, uns64 uid, uns64 vaddr, uns8 inst_size) {
   ctype_pin_inst inst;
   memset(&inst, 0, sizeof(inst));
@@ -76,7 +79,7 @@ inline ctype_pin_inst generate_independent_operand_load(uns64 ip, uns64 uid, uns
   return inst;
 }
 
-inline ctype_pin_inst  generate_alu_type_inst(uns64 ip, uns64 uid, uns8 inst_size) {
+inline ctype_pin_inst generate_alu_type_inst(uns64 ip, uns64 uid, uns8 inst_size) {
   ctype_pin_inst inst;
   memset(&inst, 0, sizeof(inst));
   inst.inst_uid = uid;
@@ -95,7 +98,7 @@ inline ctype_pin_inst  generate_alu_type_inst(uns64 ip, uns64 uid, uns8 inst_siz
   return inst;
 }
 
-inline ctype_pin_inst  generate_no_dependence_alu_type_inst(uns64 ip, uns64 uid, uns8 inst_size) {
+inline ctype_pin_inst generate_no_dependence_alu_type_inst(uns64 ip, uns64 uid, uns8 inst_size) {
   ctype_pin_inst inst;
   memset(&inst, 0, sizeof(inst));
   inst.inst_uid = uid;
@@ -169,12 +172,12 @@ inline ctype_pin_inst generate_indirect_branch(uns64 ip, uns64 uid, uns64 tgtAdd
   return inst;
 }
 
-inline ctype_pin_inst make_nop(uns64 ip, uns64 uid, uns64 inst_size, bool fake){
-    ctype_pin_inst inst = create_dummy_nop(ip, WPNM_NOT_IN_WPNM);
-    inst.size = inst_size;
-    inst.instruction_next_addr = ip + inst_size;
-    inst.inst_uid = uid;
-    inst.fake_inst = fake ? 0 : 1;
-    return inst;
+inline ctype_pin_inst make_nop(uns64 ip, uns64 uid, uns64 inst_size, bool fake) {
+  ctype_pin_inst inst = create_dummy_nop(ip, WPNM_NOT_IN_WPNM);
+  inst.size = inst_size;
+  inst.instruction_next_addr = ip + inst_size;
+  inst.inst_uid = uid;
+  inst.fake_inst = fake ? 0 : 1;
+  return inst;
 }
 #endif

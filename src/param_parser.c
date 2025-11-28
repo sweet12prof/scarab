@@ -326,11 +326,11 @@ void get_frontend_param(const char* name, uns* variable) {
 /* get_bottleneck: Converts the optarg string to a number by looking it up in the
    bottleneckNames array.  The index corresponds to the entry index, which
    determines the type of bottleneck workload that will be used to drive synthetic frontend. */
-void get_bottleneck_param(const char* name, uns* variable){
-    if (optarg) {
+void get_bottleneck_param(const char* name, uns* variable) {
+  if (optarg) {
     uns ii;
 
-    for (ii = 0;  bottleneckNames[ii]; ii++)
+    for (ii = 0; bottleneckNames[ii]; ii++)
       if (strncmp(optarg, bottleneckNames[ii], MAX_STR_LENGTH) == 0) {
         *variable = ii;
         return;

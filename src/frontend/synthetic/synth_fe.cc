@@ -4,22 +4,26 @@ extern "C" {
 #include "globals/global_types.h"
 #include "globals/global_vars.h"
 #include "globals/utils.h"
+
 #include "debug/debug.param.h"
 #include "debug/debug_macros.h"
 #include "debug/debug_print.h"
+
 #include "bp/bp.param.h"
 #include "memory/memory.param.h"
 }
 #include <iostream>
+
 #include "bp/bp.h"
 #include "frontend/synthetic/synth_fe.h"
 #include "frontend/synthetic/synthetic_kernels.h"
 #include "pin/pin_lib/uop_generator.h"
+
 #include "ctype_pin_inst.h"
-//#define PRINT_INSTRUCTION_INFO
+// #define PRINT_INSTRUCTION_INFO
 #define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_SYNTHETIC_INST, ##args)
 
-/* intrinsic frontend variables */ 
+/* intrinsic frontend variables */
 static ctype_pin_inst next_onpath_pi[MAX_NUM_PROCS];
 static ctype_pin_inst next_offpath_pi[MAX_NUM_PROCS];
 static bool off_path_mode[MAX_NUM_PROCS] = {false};

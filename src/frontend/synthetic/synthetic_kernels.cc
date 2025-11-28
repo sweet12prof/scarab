@@ -1,10 +1,11 @@
+#include "frontend/synthetic/synthetic_kernels.h"
+
 #include <algorithm>
 #include <iostream>
 #include <random>
 
 #include "bp/bp.param.h"
 #include "memory/memory.param.h"
-#include "frontend/synthetic/synthetic_kernels.h"
 
 #define NOP_SIZE ICACHE_LINE_SIZE / (ISSUE_WIDTH)
 #define BRANCH_SIZE ICACHE_LINE_SIZE - (NOP_SIZE * (ISSUE_WIDTH - 1))
@@ -44,8 +45,8 @@ void gen_branch_targets();
 
 /* The BR workloads are tricky and can induce frontend bandwidth stalls even where every issue paccket is a    factor
 of the cache line size, the following function restricts both onpath and offpath issue packets to the length   of  an
-icache line by preceeding branches with enough NOPs so that the issue packet equals ICACHE_LINE_SIZE. For a not-taken 
-branch, the next address starts at the immediately following cache line, for a taken branch the next  address      is  
+icache line by preceeding branches with enough NOPs so that the issue packet equals ICACHE_LINE_SIZE. For a not-taken
+branch, the next address starts at the immediately following cache line, for a taken branch the next  address      is
 two cache lines away */
 template <typename branch_gen>
 ctype_pin_inst lock_issue_packet_to_icache_boundary(uns64, uns64, branch_gen);
@@ -77,10 +78,10 @@ ctype_pin_inst generate_synthetic_microkernel(uns proc_id, BottleNeck_enum bottl
 
 /********************************************** Kernels ******************************************************* */
 /*
-  The control flow workloads break after the most recent commit, consecutivity assertion in ft.cc fails when the execution
-  goes offpath. This happens when a branch(usually situated at an ICACHE_BOUNDARY) is encountered on the offpath. A workaround 
-  so that the workloads can run was to generate only NOPs until recovery. Once the intial issue is fixed, the CBR kernels 
-  should revert to generating the pattern as seen on the onpath.
+  The control flow workloads break after the most recent commit, consecutivity assertion in ft.cc fails when the
+  execution goes offpath. This happens when a branch(usually situated at an ICACHE_BOUNDARY) is encountered on the
+  offpath. A workaround so that the workloads can run was to generate only NOPs until recovery. Once the intial issue is
+  fixed, the CBR kernels should revert to generating the pattern as seen on the onpath.
 */
 ctype_pin_inst generate_cbr_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
   ctype_pin_inst inst;
@@ -154,8 +155,8 @@ ctype_pin_inst generate_mem_bandwidth_limited_microkernel(uns64 ip, uns64 uid, b
     ld_vaddr = start_ld_vaddr;
   } else {
     inst = generate_independent_operand_load(ip, uid, ld_vaddr, LOAD_SIZE);
-    //ensure we are always in user space
-    ld_vaddr = (ld_vaddr + 8) %  0x0000800000000000;
+    // ensure we are always in user space
+    ld_vaddr = (ld_vaddr + 8) % 0x0000800000000000;
   }
   return inst;
 }
@@ -171,7 +172,7 @@ ctype_pin_inst create_ILP_limited_microkernel(uns64 ip, uns64 uid, bool offpath)
 
 ctype_pin_inst generate_icache_limited_microkernel(uns64 ip, uns64 uid, bool offpath) {
   if (!offpath) {
-    if (accumulated_workload_size >= 2*ICACHE_SIZE) {
+    if (accumulated_workload_size >= 2 * ICACHE_SIZE) {
       accumulated_workload_size = 0;
       return generate_unconditional_branch(ip, synth_start_uid, synth_start_pc, 64);
     }
