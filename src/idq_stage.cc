@@ -362,6 +362,8 @@ void IDQ_Stage::update(Stage_Data* dec_src_sd, Stage_Data* ic_uopc_sd, Stage_Dat
       bad_spec_slots += empty_slots;
     } else {
       unitilised_frontend_slots += empty_slots;
+      if (idq_sd.op_count == 0)
+        STAT_EVENT(proc_id, TOPDOWN_FETCH_BUBBLES_GT_MIW_CYCLES);
     }
   }
 
