@@ -94,6 +94,16 @@ void topdown_idq_update(uns proc_id, int bad_spec_slots, int unutilised_frontend
   INC_STAT_EVENT(proc_id, TOPDOWN_RETIRED_SLOTS, count_issued_on_path);
   INC_STAT_EVENT(proc_id, TOPDOWN_FRONTEND_SLOTS, unutilised_frontend_slots);
   INC_STAT_EVENT(proc_id, TOPDOWN_BAD_SPEC_SLOTS, bad_spec_slots);
+
+  // this is a little off : we dont know if we are on or offpath ...
+  if (count_issued == 0 && idq_stage_get_stage_data()->op_count > 0) {
+    STAT_EVENT(proc_id, TOPDOWN_BACKEND_STALLS_CYCLES);
+    if (lsq_get_in_flight_load_num() > 0) {
+      STAT_EVENT(proc_id, TOPDOWN_MEM_LOAD_STALLS_CYCLES);
+    } else if (!lsq_available(MEM_ST)) {
+      STAT_EVENT(proc_id, TOPDOWN_MEM_STORE_STALLS_CYCLES);
+    }
+  }
 }
 
 void topdown_exec_update(uns proc_id, uns8 fus_busy) {
