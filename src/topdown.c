@@ -87,32 +87,30 @@ void topdown_bp_recovery(uns proc_id, Op* op) {
   idq_stage_set_recovery_cycle(TOPDOWN_RECOVERY_DEPTH);
 }
 
-void topdown_idq_update(uns proc_id, int count_available, int count_issued, int count_issued_on_path) {
-  INC_STAT_EVENT(proc_id, TOPDOWN_TOTAL_SLOTS, DISPATCH_WIDTH);
-  INC_STAT_EVENT(proc_id, TOPDOWN_ISSUED_SLOTS, count_issued);
+void topdown_idq_update(uns proc_id, int count_bad_spec_slots, int count_unutilised_frontend_slots,
+                        int count_backend_slots, int count_issued_on_path) {
+  // op_count_before_consuming, used at the input of IDQ (idq_stage.cc) can be greater than DISPATCH_WIDTH so
+  // incrementing TOTAL_SLOTS with DISPATCH_WIDTH underestimates everything.
+  uns total_slots = count_backend_slots + count_unutilised_frontend_slots + count_bad_spec_slots + count_issued_on_path;
+  INC_STAT_EVENT(proc_id, TOPDOWN_TOTAL_SLOTS, total_slots);
   INC_STAT_EVENT(proc_id, TOPDOWN_RETIRED_SLOTS, count_issued_on_path);
+  INC_STAT_EVENT(proc_id, TOPDOWN_FRONTEND_SLOTS, count_unutilised_frontend_slots);
+  INC_STAT_EVENT(proc_id, TOPDOWN_BAD_SPEC_SLOTS, count_bad_spec_slots);
+  INC_STAT_EVENT(proc_id, TOPDOWN_BACKEND_SLOTS, count_backend_slots);
 
-  int recovery_cycle = idq_stage_get_recovery_cycle();
-  if (recovery_cycle != 0) {
-    ASSERT(proc_id, recovery_cycle > 0);
-    idq_stage_set_recovery_cycle(recovery_cycle - 1);
-    INC_STAT_EVENT(proc_id, TOPDOWN_RECOVERY_BUBBLES_SLOTS, DISPATCH_WIDTH - count_available);
-    return;
-  }
-
-  // only increment frontend-stall when there is no backend-stall
-  if (count_issued == 0 && idq_stage_get_stage_data()->op_count > 0) {
-    STAT_EVENT(proc_id, TOPDOWN_BACKEND_STALLS_CYCLES);
+  /*
+    breakdown unutilised backend slots into load/store slots
+  */
+  if (count_backend_slots > 0) {
     if (lsq_get_in_flight_load_num() > 0) {
-      STAT_EVENT(proc_id, TOPDOWN_MEM_LOAD_STALLS_CYCLES);
+      INC_STAT_EVENT(proc_id, TOPDOWN_MEM_LOAD_SLOTS, count_backend_slots);
     } else if (!lsq_available(MEM_ST)) {
-      STAT_EVENT(proc_id, TOPDOWN_MEM_STORE_STALLS_CYCLES);
+      INC_STAT_EVENT(proc_id, TOPDOWN_MEM_STORE_SLOTS, count_backend_slots);
     }
-    return;
   }
 
-  INC_STAT_EVENT(proc_id, TOPDOWN_FETCH_BUBBLES_SLOTS, DISPATCH_WIDTH - count_available);
-  if (count_available == 0)
+  // if this condition is true it means the idq did not receive any uops
+  if (count_unutilised_frontend_slots == DISPATCH_WIDTH)
     STAT_EVENT(proc_id, TOPDOWN_FETCH_BUBBLES_GT_MIW_CYCLES);
 }
 
@@ -163,13 +161,13 @@ void topdown_exec_update(uns proc_id, uns8 fus_busy) {
 
 void topdown_done(uns proc_id) {
   /* Top-Level Breakdown */
-  uns64 frontend_bound = GET_STAT_EVENT(proc_id, TOPDOWN_FETCH_BUBBLES_SLOTS) * TOPDOWN_SCALE_FACTOR /
+  ASSERT(proc_id, GET_STAT_EVENT(proc_id, TOPDOWN_TOTAL_SLOTS) != 0);
+  uns64 frontend_bound = GET_STAT_EVENT(proc_id, TOPDOWN_FRONTEND_SLOTS) * TOPDOWN_SCALE_FACTOR /
                          GET_STAT_EVENT(proc_id, TOPDOWN_TOTAL_SLOTS);
   INC_STAT_EVENT(proc_id, TOPDOWN_FRONTEND_BOUND, frontend_bound);
 
-  uns64 bad_spec_slots = GET_STAT_EVENT(proc_id, TOPDOWN_ISSUED_SLOTS) -
-                         GET_STAT_EVENT(proc_id, TOPDOWN_RETIRED_SLOTS) +
-                         GET_STAT_EVENT(proc_id, TOPDOWN_RECOVERY_BUBBLES_SLOTS);
+  uns64 bad_spec_slots = GET_STAT_EVENT(proc_id, TOPDOWN_BAD_SPEC_SLOTS);
+
   uns64 bad_spec_bound = bad_spec_slots * TOPDOWN_SCALE_FACTOR / GET_STAT_EVENT(proc_id, TOPDOWN_TOTAL_SLOTS);
   INC_STAT_EVENT(proc_id, TOPDOWN_BAD_SPEC_BOUND, bad_spec_bound);
 
@@ -177,19 +175,19 @@ void topdown_done(uns proc_id) {
                          GET_STAT_EVENT(proc_id, TOPDOWN_TOTAL_SLOTS);
   INC_STAT_EVENT(proc_id, TOPDOWN_RETIRING_BOUND, retiring_bound);
 
-  uns64 backend_bound = TOPDOWN_SCALE_FACTOR - frontend_bound - bad_spec_bound - retiring_bound;
+  uns64 backend_bound = GET_STAT_EVENT(proc_id, TOPDOWN_BACKEND_SLOTS) * TOPDOWN_SCALE_FACTOR /
+                        GET_STAT_EVENT(proc_id, TOPDOWN_TOTAL_SLOTS);
+
   INC_STAT_EVENT(proc_id, TOPDOWN_BACKEND_BOUND, backend_bound);
 
   /* Backend Breakdown */
-  // prevent division by zero
-  uns64 backend_stalls_cycles = GET_STAT_EVENT(proc_id, TOPDOWN_BACKEND_STALLS_CYCLES);
-  if (backend_stalls_cycles == 0) {
-    backend_stalls_cycles++;
-  }
+  uns64 mem_slots = GET_STAT_EVENT(proc_id, TOPDOWN_MEM_LOAD_SLOTS) + GET_STAT_EVENT(proc_id, TOPDOWN_MEM_STORE_SLOTS);
 
-  uns64 mem_stalls_cycles = (GET_STAT_EVENT(proc_id, TOPDOWN_MEM_LOAD_STALLS_CYCLES) +
-                             GET_STAT_EVENT(proc_id, TOPDOWN_MEM_STORE_STALLS_CYCLES));
-  uns64 mem_bound = backend_bound * mem_stalls_cycles / backend_stalls_cycles;
+  uns64 mem_bound = 0;
+  uns64 backend_slots = GET_STAT_EVENT(proc_id, TOPDOWN_BACKEND_SLOTS);
+  if (backend_slots > 0)
+    mem_bound = backend_bound * mem_slots / backend_slots;
+
   INC_STAT_EVENT(proc_id, TOPDOWN_MEM_BOUND, mem_bound);
   INC_STAT_EVENT(proc_id, TOPDOWN_CORE_BOUND, backend_bound - mem_bound);
 
@@ -197,7 +195,6 @@ void topdown_done(uns proc_id) {
   // TODO: need more metadata from the simulation frontend to determine if an operand requires MicroSequencer
 
   /* Front-End Breakdown */
-  ASSERT(proc_id, GET_STAT_EVENT(proc_id, TOPDOWN_TOTAL_SLOTS) != 0);
   uns64 latency_bound = GET_STAT_EVENT(proc_id, TOPDOWN_FETCH_BUBBLES_GT_MIW_CYCLES) * TOPDOWN_SCALE_FACTOR /
                         GET_STAT_EVENT(proc_id, NODE_CYCLE);
   INC_STAT_EVENT(proc_id, TOPDOWN_FETCH_LATENCY_BOUND, latency_bound);
