@@ -34,7 +34,7 @@ void Kernel_Factory::generate_tail_end_insts(std::vector<ctype_pin_inst>& kernel
                                              Sampler& targets_pool, uns pad_to_next_inst,
                                              uns unconditional_branch_size) {
   uns64 current_pc = targets_pool.get_last_element_in_sorted_order() + pad_to_next_inst;
-  current_pc = generate_nop_sequence(kernel_buffer, uid_sequence, DISPATCH_WIDTH - 1, current_pc);
+  current_pc = generate_nop_sequence(kernel_buffer, uid_sequence, DISPATCH_WIDTH, current_pc);
   auto next_inst = generate_unconditional_branch(current_pc, uid_sequence.get_next_element(), get_start_pc(),
                                                  unconditional_branch_size);
   kernel_buffer.push_back(next_inst);
@@ -64,7 +64,9 @@ void Kernel_Factory::generate_tail_end_insts(std::vector<ctype_pin_inst>& kernel
  * ================================================================================================*/
 
 std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
-  inst_size = ICACHE_LINE_SIZE - (nop_size * (DISPATCH_WIDTH - 1));
+  // inst_size = ICACHE_LINE_SIZE - (nop_size * (DISPATCH_WIDTH - 1));
+  inst_size = 1;
+  nop_size = 1;
   uid_sequence =
       Sampler(UNIFORM_SEQUENTIAL, 1, ((2 * DISPATCH_WIDTH * target_pool_size) + pad_length + 1), start_uid, 1);
 
@@ -81,7 +83,7 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
   for (uns i{0}; i < (target_pool_size); i++) {
     // generate leading nops and return next pc
     current_pc = target_pool.get_next_element();
-    current_pc = generate_nop_sequence(kernel_buffer, uid_sequence, DISPATCH_WIDTH - 2, current_pc);
+    current_pc = generate_nop_sequence(kernel_buffer, uid_sequence, DISPATCH_WIDTH, current_pc);
     current_uid = uid_sequence.get_next_element();
     // every taken target is the next element in the shuffled sequence
     _target = target_pool.peek_next_element() + get_nop_size();
