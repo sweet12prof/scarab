@@ -7,6 +7,7 @@
 #include "memory/memory.param.h"
 
 #include "frontend/synthetic/kernel_params.h"
+
 /* Bottleneck name strings */
 const char* kernel_names[] = {
 #define KERNEL_IMPL(id, name) name,
@@ -14,34 +15,34 @@ const char* kernel_names[] = {
 #undef KERNEL_IMPL
     "invalid"};
 
+/* Memory hierachy level name strings */
+const char* mem_hierachy_level_names[] = {
+#define MEMORY_HIERACHY_LEVEL_IMPL(id, name) name,
+#include "mem_hierachy_level_table.def"
+#undef MEMORY_HIERACHY_LEVEL_IMPL
+    "invalid"};
+
+const char* sampling_strategy_names[] = {
+#define SAMPLING_STRATEGY_IMPL(id, name) name,
+#include "sampling_strategy_table.def"
+#undef SAMPLING_STRATEGY_IMPL
+    "invalid"};
+
 std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_kernel() {
   switch (kernel) {
-    case MEM_BANDWIDTH_LIMITED:
+    case MEM_FU_LIMITED:
       return generate_load_kernel(NO_DEPENDENCE_CHAIN);
-    case DCACHE_LIMITED:
-    case MLC_LIMITED:
-    case LLC_LIMITED:
-    case MEM_LIMITED:
+    case LOAD_LATENCY_LIMITED:
       return generate_load_kernel(DEPENDENCE_CHAIN);
-    case CBR_LIMITED_20T:
-    case CBR_LIMITED_50T:
-    case CBR_LIMITED_80T:
+    case CBR_LIMITED:
       return generate_cbr_kernel();
-    case BTB_LIMITED_FULL_ASSOC_SWEEP:
-    case BTB_LIMITED_FULL_CAPACITY_SWEEP:
-    case BTB_CONTAINED:
+    case BTB_LIMITED:
       return generate_ubr_kernel();
-    case IBR_LIMITED_Random_2TGTS:
-    case IBR_LIMITED_RANDOM_4TGTS:
-      return generate_random_ibr_kernel();
-    case IBR_LIMITED_ROUNDROBIN_4TGTS:
+    case IBR_LIMITED:
       return generate_round_robin_ibr_kernel();
     case ICACHE_LIMITED:
       return generate_icache_kernel();
-    case ILP_LIMITED_0_DEP_CHAIN:
-    case ILP_LIMITED_1_DEP_CHAIN:
-    case ILP_LIMITED_2_DEP_CHAIN:
-    case ILP_LIMITED_4_DEP_CHAIN:
+    case ILP_LIMITED:
       return generate_ilp_kernel(num_of_dependence_chains, workload_length);
     default:
       assert(0 && "Invalid kernel");
@@ -57,99 +58,19 @@ Kernel_Factory::Kernel_Factory(Kernel_Enum kernel, uns64 start_pc, uns64 start_u
       start_pc(start_pc),
       start_uid(start_uid),
       workload_length(workloadlength),
-      starting_target((get_start_pc())),
-      target_stride(2 * ICACHE_LINE_SIZE),
-      target_pool_size(workloadlength),
-      t_nt_ratio(1),
-      level(DCACHE_LEVEL),
-      num_of_dependence_chains(0),
-      inst_size(8),
-      nop_size(ICACHE_LINE_SIZE / (DISPATCH_WIDTH)),
-      pad_length(500),
-      target_strategy(UNIFORM_SEQUENTIAL),
-      direction_strategy(DICRETE_RANDOM),
-      uid_sequence(UNIFORM_SEQUENTIAL, 1, (workload_length + pad_length + 1), start_uid, 1),
-      pc_sequence(UNIFORM_SEQUENTIAL, 1, (workload_length), start_pc, inst_size),
+      starting_target(STARTING_TARGET),
+      target_stride(TARGET_STRIDE),
+      target_pool_size(TARGET_POOL_SIZE),
+      t_nt_ratio(T_NT_RATIO),
+      level(static_cast<Limit_Load_To>(MEM_HIERACHY_LEVEL)),
+      num_of_dependence_chains(DEPENDENCE_CHAIN_COUNT),
+      inst_size(INST_SIZE),
+      nop_size(NOP_SIZE),
+      pad_length(PAD_LENGTH),
+      target_strategy(static_cast<Sampling_Strategy>(TARGET_SAMPLING_STRATEGY)),
+      direction_strategy(static_cast<Sampling_Strategy>(DIRECTION_SAMPLING_STRATEGY)),
+      uid_sequence(UNIFORM_SEQUENTIAL, 1, (WORKLOAD_LENGTH + PAD_LENGTH + 1), start_uid, 1),
+      pc_sequence(UNIFORM_SEQUENTIAL, 1, WORKLOAD_LENGTH, start_pc, INST_SIZE),
       target_pool(target_strategy, 1, target_pool_size, get_start_pc(), target_stride) {
   std::cout << "Generating " << kernel_names[kernel] << " kernel" << std::endl;
-  switch (kernel) {
-    // empty cases are intentional to enable assertion of invalid kernels on default case
-    case MEM_BANDWIDTH_LIMITED:
-      break;
-    case DCACHE_LIMITED:
-      level = DCACHE_LEVEL;
-      break;
-    case MLC_LIMITED:
-      level = MLC_LEVEL;
-      break;
-    case LLC_LIMITED:
-      level = LLC_LEVEL;
-      break;
-    case MEM_LIMITED:
-      level = MEM_LEVEL;
-      break;
-    case CBR_LIMITED_20T:
-      t_nt_ratio = 0.2;
-      target_strategy = UNIFORM_RANDOM;
-      target_stride = ICACHE_LINE_SIZE;
-      break;
-    case CBR_LIMITED_50T:
-      t_nt_ratio = 0.5;
-      target_strategy = UNIFORM_RANDOM;
-      target_stride = ICACHE_LINE_SIZE;
-      break;
-    case CBR_LIMITED_80T:
-      t_nt_ratio = 0.8;
-      target_strategy = UNIFORM_RANDOM;
-      target_stride = ICACHE_LINE_SIZE;
-      break;
-    case IBR_LIMITED_Random_2TGTS:
-      target_strategy = UNIFORM_RANDOM;
-      target_pool_size = 2;
-      break;
-    case IBR_LIMITED_RANDOM_4TGTS:
-      target_strategy = UNIFORM_RANDOM;
-      target_pool_size = 4;
-      break;
-    case IBR_LIMITED_ROUNDROBIN_4TGTS:
-      target_strategy = UNIFORM_SEQUENTIAL;
-      target_pool_size = 4;
-      break;
-    case BTB_LIMITED_FULL_ASSOC_SWEEP:
-      target_pool_size = BTB_ASSOC + 1;
-      workload_length = BTB_ASSOC + 1;
-      target_stride = BTB_ENTRIES;
-      target_strategy = UNIFORM_SEQUENTIAL;
-      break;
-    case BTB_LIMITED_FULL_CAPACITY_SWEEP:
-      target_stride = (ICACHE_LINE_SIZE);
-      target_pool_size = BTB_ENTRIES + 1;
-      workload_length = BTB_ENTRIES + 1;
-      target_strategy = UNIFORM_RANDOM;
-      break;
-    case BTB_CONTAINED:
-      target_pool_size = BTB_ENTRIES;
-      workload_length = BTB_ENTRIES;
-      break;
-    case ILP_LIMITED_0_DEP_CHAIN:
-      break;
-    case ILP_LIMITED_1_DEP_CHAIN:
-      num_of_dependence_chains = 1;
-      break;
-    case ILP_LIMITED_2_DEP_CHAIN:
-      num_of_dependence_chains = 2;
-      break;
-    case ILP_LIMITED_4_DEP_CHAIN:
-      num_of_dependence_chains = 4;
-      break;
-    case ICACHE_LIMITED:
-      workload_length = 2 * (ICACHE_SIZE / ICACHE_LINE_SIZE);
-      inst_size = ICACHE_LINE_SIZE;
-      break;
-    default:
-      assert(0 && "kernel is invalid");
-      break;
-  }
-  pc_sequence = Sampler(UNIFORM_SEQUENTIAL, 1, (workload_length), start_pc, inst_size);
-  target_pool = Sampler(target_strategy, 1, target_pool_size, starting_target, target_stride);
 }

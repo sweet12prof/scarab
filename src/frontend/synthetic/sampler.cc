@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cassert>
 
+#include "sampler_params.h"
+
 uns64 Sampler::get_next_element() {
   auto index{next_pick_index};
   if (++next_pick_index >= sequence_vector.size())
@@ -80,7 +82,7 @@ std::vector<uns64> Sampler::generate_discrete_weight_sequence(std::vector<uns64>
 }
 
 // Common Constructor...shared code by all sequence types
-Sampler::Sampler(std::vector<uns64> seq_vec, Sequence_Pick_Strategy strategy, uns periodicity, bool should_shuffle)
+Sampler::Sampler(std::vector<uns64> seq_vec, Sampling_Strategy strategy, uns periodicity, bool should_shuffle)
     : sequence_vector(std::move(seq_vec)), strategy(strategy), next_pick_index(0), rng_engine(std::random_device{}()) {
   last_element_in_sorted_order = sequence_vector.back();
   scale_periodicity(periodicity);
@@ -89,23 +91,23 @@ Sampler::Sampler(std::vector<uns64> seq_vec, Sequence_Pick_Strategy strategy, un
 }
 
 // Builds UNIFORM_SEQUENTIAL, NORMAL_RANDOM or UNIFORM_RANDOM sequence and passes control to common constructor
-Sampler::Sampler(Sequence_Pick_Strategy strategy, uns periodicity, uns64 value_range, uns64 startval, uns64 stride)
+Sampler::Sampler(Sampling_Strategy strategy, uns periodicity, uns64 value_range, uns64 startval, uns64 stride)
     : Sampler((strategy == UNIFORM_RANDOM || strategy == UNIFORM_SEQUENTIAL)
                   ? generate_range_based_sequence(value_range, startval, stride)
                   : generate_normal_curve_sequence(value_range, startval, stride),
               strategy, periodicity, (strategy == UNIFORM_RANDOM || strategy == NORMAL_RANDOM)) {
-  assert((strategy == Sequence_Pick_Strategy::UNIFORM_RANDOM || strategy == Sequence_Pick_Strategy::NORMAL_RANDOM ||
-          strategy == Sequence_Pick_Strategy::UNIFORM_SEQUENTIAL) &&
+  assert((strategy == Sampling_Strategy::UNIFORM_RANDOM || strategy == Sampling_Strategy::NORMAL_RANDOM ||
+          strategy == Sampling_Strategy::UNIFORM_SEQUENTIAL) &&
          "this constructor builds either uniform_random or normal_random or uniform sequential");
 }
 
 // Builds DISCRETE_RANDOM or retains USER_DEFINED sequence vector and passes control to common constructor
-Sampler::Sampler(Sequence_Pick_Strategy strategy, uns periodicity, std::vector<uns64> values, uns sequence_length,
+Sampler::Sampler(Sampling_Strategy strategy, uns periodicity, std::vector<uns64> values, uns sequence_length,
                  std::vector<uns64> weights)
-    : Sampler((strategy == Sequence_Pick_Strategy::DICRETE_RANDOM
+    : Sampler((strategy == Sampling_Strategy::DISCRETE_RANDOM
                    ? generate_discrete_weight_sequence(values, sequence_length, weights)
                    : values),
-              strategy, periodicity, (strategy == Sequence_Pick_Strategy::DICRETE_RANDOM ? true : false)) {
-  assert((strategy == Sequence_Pick_Strategy::DICRETE_RANDOM || strategy == Sequence_Pick_Strategy::USER_DEFINED) &&
+              strategy, periodicity, (strategy == Sampling_Strategy::DISCRETE_RANDOM ? true : false)) {
+  assert((strategy == Sampling_Strategy::DISCRETE_RANDOM || strategy == Sampling_Strategy::USER_DEFINED) &&
          "this constructor only builds discrete random or user_Defined sequences");
 }

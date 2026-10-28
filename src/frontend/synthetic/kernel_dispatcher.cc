@@ -4,32 +4,18 @@
 
 ctype_pin_inst Kernel_Dispatcher::synthetic_fe_generate_next(uns proc_id, bool offpath) {
   switch (kernel) {
-    case MEM_BANDWIDTH_LIMITED:
-    case DCACHE_LIMITED:
-    case MLC_LIMITED:
-    case LLC_LIMITED:
-    case MEM_LIMITED:
-    case BTB_LIMITED_FULL_ASSOC_SWEEP:
-    case BTB_LIMITED_FULL_CAPACITY_SWEEP:
-    case BTB_CONTAINED:
+    case MEM_FU_LIMITED:
+    case LOAD_LATENCY_LIMITED:
+    case BTB_LIMITED:
     case ICACHE_LIMITED:
-    case ILP_LIMITED_0_DEP_CHAIN:
-    case ILP_LIMITED_1_DEP_CHAIN:
-    case ILP_LIMITED_2_DEP_CHAIN:
-    case ILP_LIMITED_4_DEP_CHAIN:
-    // the IBR_Round Robin does not require rerandomization, targets are random initially, persist thereafter
-    case IBR_LIMITED_ROUNDROBIN_4TGTS:
+    case ILP_LIMITED:
       return get_next_kernel_inst();
-
-    case CBR_LIMITED_20T:
-    case CBR_LIMITED_50T:
-    case CBR_LIMITED_80T:
+    case CBR_LIMITED:
       return get_next_cbr_kernel_type_inst(proc_id, offpath);
 
-    case IBR_LIMITED_Random_2TGTS:
-    case IBR_LIMITED_RANDOM_4TGTS: {
+    case IBR_LIMITED:
       return get_next_ibr_kernel_type_inst(proc_id, offpath);
-    }
+
     default:
       assert(0 && "Invalid Kernel");
   }

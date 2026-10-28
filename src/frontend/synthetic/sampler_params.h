@@ -1,13 +1,11 @@
 #ifndef SAMPLER_PARAMS_H
 #define SAMPLER_PARAMS_H
 
-typedef enum Sequence_Pick_Strategy_Enum {
-  UNIFORM_SEQUENTIAL,  // pick sequentially
-  UNIFORM_RANDOM,      // pick sequentially but sequence vector must be shuffled
-  NORMAL_RANDOM,       // use the Bell Curve Normal Distribution formula
-  DICRETE_RANDOM,      // every sample/element has a discrete probability
-  USER_DEFINED
-} Sequence_Pick_Strategy;
+typedef enum Sampling_Strategy_Enum {
+#define SAMPLING_STRATEGY_IMPL(id, name) id,
+#include "frontend/synthetic/sampling_strategy_table.def"
+#undef SAMPLING_STRATEGY_IMPL
+} Sampling_Strategy;
 
 /* Enum for Kernels */
 typedef enum Load_Kernel_Type_Enum {
@@ -16,10 +14,12 @@ typedef enum Load_Kernel_Type_Enum {
 } Load_Kernel_Type;
 
 typedef enum Limit_Load_To_Enum {
-  MLC_LEVEL,
-  LLC_LEVEL,
-  MEM_LEVEL,
-  DCACHE_LEVEL
+#define MEMORY_HIERACHY_LEVEL_IMPL(id, name) id,
+#include "frontend/synthetic/mem_hierachy_level_table.def"
+#undef MEMORY_HIERACHY_LEVEL_IMPL
 } Limit_Load_To;
+
+extern const char* mem_hierachy_level_names[];
+extern const char* sampling_strategy_names[];
 
 #endif

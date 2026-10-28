@@ -55,6 +55,7 @@ the program.  This way, an exact duplicate run can be performed.
 #include "bp/bp.h"
 #include "frontend/frontend_intf.h"
 #include "frontend/synthetic/kernel_params.h"
+#include "frontend/synthetic/sampler_params.h"
 
 #include "model.h"
 #include "sim.h"
@@ -403,6 +404,42 @@ void get_kernel_param(const char* name, uns* variable) {
   } else
     FATAL_ERROR(0, "Parameter '%s' missing value --- Ignored.\n", name);
 }
+
+/**************************************************************************************/
+/* get_memory_hierachy_level: Converts the optarg string to a number by looking it up in the
+   memory_hierachy_level array.  The index corresponds to the entry index, which
+   determines the memory_hiearchy_level at which a bottleneck will be orchestrated. */
+void get_mem_hierachy_level_param(const char* name, uns* variable) {
+  if (optarg) {
+    uns ii;
+
+    for (ii = 0; mem_hierachy_level_names[ii]; ii++)
+      if (strncmp(optarg, mem_hierachy_level_names[ii], MAX_STR_LENGTH) == 0) {
+        *variable = ii;
+        return;
+      }
+    FATAL_ERROR(0, "Invalid value ('%s') for parameter '%s' --- Ignored.\n", optarg, name);
+  } else
+    FATAL_ERROR(0, "Parameter '%s' missing value --- Ignored.\n", name);
+};
+
+/* get_sampling_strategy: Converts the optarg string to a number by looking it up in the
+   sampling_strategy array. The index corresponds to the entry index, which
+   determines the strategy which a sampler will use in creating and sampling elements from a pool. */
+void get_sampling_strategy_param(const char* name, uns* variable) {
+  if (optarg) {
+    uns ii;
+
+    for (ii = 0; sampling_strategy_names[ii]; ii++)
+      if (strncmp(optarg, sampling_strategy_names[ii], MAX_STR_LENGTH) == 0) {
+        *variable = ii;
+        return;
+      }
+    FATAL_ERROR(0, "Invalid value ('%s') for parameter '%s' --- Ignored.\n", optarg, name);
+  } else
+    FATAL_ERROR(0, "Parameter '%s' missing value --- Ignored.\n", name);
+}
+
 /**************************************************************************************/
 /* get_dram_sched: Converts the optarg string to a number by looking it up in
    the dram_sched_table array.  The index corresponds to the entry index, which

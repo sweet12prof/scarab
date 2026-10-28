@@ -145,8 +145,8 @@ class Kernel_Factory {
   uns inst_size;
   uns nop_size;
   uns pad_length;
-  Sequence_Pick_Strategy target_strategy;
-  Sequence_Pick_Strategy direction_strategy;
+  Sampling_Strategy target_strategy;
+  Sampling_Strategy direction_strategy;
   Sampler uid_sequence;
   Sampler pc_sequence;
   Sampler target_pool;

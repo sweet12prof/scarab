@@ -11,7 +11,7 @@
 
 class Sampler {
   std::vector<uns64> sequence_vector;
-  Sequence_Pick_Strategy strategy;
+  Sampling_Strategy strategy;
   uns64 next_pick_index;
   uns64 last_element_in_sorted_order;
   void scale_periodicity(uns64 periodicity);
@@ -48,13 +48,13 @@ class Sampler {
   uns64 get_last_element_in_sorted_order() const { return last_element_in_sorted_order; }
 
   // Common Constructor
-  Sampler(std::vector<uns64> sequence_vector, Sequence_Pick_Strategy strategy, uns periodicity, bool should_shuffle);
+  Sampler(std::vector<uns64> sequence_vector, Sampling_Strategy strategy, uns periodicity, bool should_shuffle);
 
   // Builds UNIFORM_SEQUENTIAL, NORMAL_RANDOM or UNIFORM_RANDOM sequence and passes control to common constructor
-  Sampler(Sequence_Pick_Strategy strategy, uns periodicity, uns64 value_range, uns64 startval, uns64 stride);
+  Sampler(Sampling_Strategy strategy, uns periodicity, uns64 value_range, uns64 startval, uns64 stride);
 
   // Builds DISCRETE_RANDOM or retains USER_DEFINED sequence vector and passes control to common constructor
-  Sampler(Sequence_Pick_Strategy strategy, uns periodicity, std::vector<uns64> values, uns sequence_length,
+  Sampler(Sampling_Strategy strategy, uns periodicity, std::vector<uns64> values, uns sequence_length,
           std::vector<uns64> weights = {});
 
   void print_sequence() const {
