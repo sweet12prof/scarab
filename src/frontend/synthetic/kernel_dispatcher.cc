@@ -23,17 +23,38 @@ ctype_pin_inst Kernel_Dispatcher::synthetic_fe_generate_next(uns proc_id, bool o
 
 // dispatches next instruction to be executed the kernel
 ctype_pin_inst Kernel_Dispatcher::get_next_kernel_inst() {
-  auto it = kernel_map.find(get_next_pc());
-  auto inst = it->second;
-  // if (it == kernel_map.end()) {
-  //   for (auto item : kernel_map)
-  //     std::cout << item.first << " " << (uns32)item.second.size << std::endl;
-  //   std::cout << "Looking for pc: " << it->first << std::endl;
-  // }
+  auto inst_pc = get_next_pc();
+  auto it = kernel_map.find(inst_pc);
+
+  if (it == kernel_map.end()) {
+    for (auto item : kernel_map) {
+      std::string op_name;
+      switch (item.second.op_type) {
+        case OP_CF: {
+          if (item.second.cf_type == CF_CBR)
+            op_name = " cbr";
+          else if (item.second.cf_type == CF_BR)
+            op_name = " br";
+        } break;
+
+        case OP_NOP:
+          op_name = "nop";
+          break;
+
+        default:
+          op_name = "inv";
+          break;
+      }
+      std::cout << " pc: " << item.first << " op: " << op_name << " op_size " << (uint32_t)item.second.size
+                << std::endl;
+    }
+    std::cout << "Looking for pc: " << inst_pc << std::endl;
+  }
   assert(it != kernel_map.end() && "Every inst possible should be in the map");
-  // update next_pc for next time
+
+  auto inst = it->second;
   next_pc = inst.instruction_next_addr;
-  return it->second;
+  return inst;
 }
 
 // dipatches next cbr op and rerandomizes the cbr directions if we are at the end of kernel
@@ -45,6 +66,7 @@ ctype_pin_inst Kernel_Dispatcher::get_next_cbr_kernel_type_inst(uns proc_id, boo
 
     if (num_of_ops_executed == factory.get_target_pool_size()) {
       num_of_ops_executed = 0;
+      factory.reset_target_pool_pointer();
       kernel_map = factory.generate_kernel();
     }
   }

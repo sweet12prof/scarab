@@ -33,13 +33,15 @@ uns64 Kernel_Factory::generate_nop_sequence(std::vector<ctype_pin_inst>& kernel_
 void Kernel_Factory::generate_tail_end_insts(std::vector<ctype_pin_inst>& kernel_buffer, Sampler& uid_sequence,
                                              Sampler& targets_pool, uns pad_to_next_inst,
                                              uns unconditional_branch_size) {
+  // std::cout << " last element in sortted order: " << targets_pool.get_last_element_in_sorted_order() << std::endl;
   uns64 current_pc = targets_pool.get_last_element_in_sorted_order() + pad_to_next_inst;
+  // std::cout << " current pc for tail end start :  " << current_pc << std::endl;
   current_pc = generate_nop_sequence(kernel_buffer, uid_sequence, DISPATCH_WIDTH, current_pc);
   auto next_inst = generate_unconditional_branch(current_pc, uid_sequence.get_next_element(), get_start_pc(),
                                                  unconditional_branch_size);
   kernel_buffer.push_back(next_inst);
   current_pc += unconditional_branch_size;
-  generate_nop_sequence(kernel_buffer, uid_sequence, pad_length, current_pc);
+  generate_nop_sequence(kernel_buffer, uid_sequence, pad_length + 1500, current_pc);
 }
 
 /* ===============================================================================================
@@ -55,8 +57,8 @@ void Kernel_Factory::generate_tail_end_insts(std::vector<ctype_pin_inst>& kernel
  the sequience of NOPs+CBR in each issue packet is sized to fit the ICACHE_LINE_SIZE.
  * The kernel is essentially an unrolled loop, that ends with backward unconditional branch back to the
  beginning of the program. The branch direction sequence is rerandomized when control returns to the beginning.
- * The target_pool is generated randomly initially. But every iteration of the loop uses the same fixed
- targets according to the same sequence.
+ * The target_pool is generated randomly initially.   // std::cout << std::endl << std::endl << std::endl;But every
+ iteration of the loop uses the same fixed targets according to the same sequence.
  *---------------------------------KERNEL VARIANTS-------------------------------------------------*
  * CBR_20t - t_nt_ratio is 0.2. weights = {20, 80}
  * CBR_50t - t_nt_ratio is 0.2. weights = {50, 50}
@@ -86,7 +88,7 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
     current_pc = generate_nop_sequence(kernel_buffer, uid_sequence, DISPATCH_WIDTH, current_pc);
     current_uid = uid_sequence.get_next_element();
     // every taken target is the next element in the shuffled sequence
-    _target = target_pool.peek_next_element() + get_nop_size();
+    _target = target_pool.peek_next_element();
     next_inst = generate_conditional_branch(current_pc, current_uid, _target, direction_sequence.get_next_element(),
                                             get_inst_size());
     kernel_buffer.push_back(next_inst);
@@ -95,14 +97,38 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
     // get_inst_size()));
     current_uid = uid_sequence.get_next_element();
     current_pc += get_inst_size();
-    next_inst = generate_unconditional_branch(current_pc, current_uid, _target, get_nop_size());
+    next_inst = generate_unconditional_branch(current_pc, current_uid, _target + get_nop_size(), get_inst_size());
+    current_pc += get_inst_size();
     // std::cout << "appended size is " << current_pc + get_nop_size() << std::endl;
     // assert(current_pc + get_nop_size() % ICACHE_LINE_SIZE && "SHOULD not be possible");
     kernel_buffer.push_back(next_inst);
+    // generate_nop_sequence(kernel_buffer, uid_sequence, ICACHE_LINE_SIZE - (DISPATCH_WIDTH + 2), current_pc);
   }
   // std::cout << "Last PC is before tail end" << current_pc << std::endl;
-  generate_tail_end_insts(kernel_buffer, uid_sequence, target_pool, ICACHE_LINE_SIZE, get_nop_size());
+  generate_tail_end_insts(kernel_buffer, uid_sequence, target_pool, (DISPATCH_WIDTH + 2), get_nop_size());
   flush_kernel_buffer(kernel_buffer, kernel_map);
+  // for (auto item : kernel_map) {
+  //   std::string op_name;
+  //   switch (item.second.op_type) {
+  //     case OP_CF: {
+  //       if (item.second.cf_type == CF_CBR)
+  //         op_name = " cbr";
+  //       else if (item.second.cf_type == CF_BR)
+  //         op_name = " br";
+  //     } break;
+
+  //     case OP_NOP:
+  //       op_name = "nop";
+  //       break;
+
+  //     default:
+  //       op_name = "inv";
+  //       break;
+  //   }
+  //   std::cout << " pc: " << item.first << " op: " << op_name << std::endl;
+  // }
+
+  // std::cout << std::endl << std::endl << std::endl;
   return kernel_map;
 }
 
