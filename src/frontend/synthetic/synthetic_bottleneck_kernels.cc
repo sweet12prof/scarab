@@ -67,8 +67,8 @@ void Kernel_Factory::generate_tail_end_insts(std::vector<ctype_pin_inst>& kernel
 
 std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
   // inst_size = ICACHE_LINE_SIZE - (nop_size * (DISPATCH_WIDTH - 1));
-  inst_size = 1;
-  nop_size = 1;
+  // inst_size = 1;
+  // nop_size = 1;
   uid_sequence =
       Sampler(UNIFORM_SEQUENTIAL, 1, ((2 * DISPATCH_WIDTH * target_pool_size) + pad_length + 1), start_uid, 1);
 
@@ -80,6 +80,7 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
   Sampler direction_sequence(direction_strategy, 1, {0, 1}, ((target_pool_size)), {taken_ratio, not_Taken_ratio});
   uns64 current_pc{0}, current_uid{0}, _target{0};
   ctype_pin_inst next_inst;
+  uns group_size = DISPATCH_WIDTH*NOP_SIZE + (2*get_inst_size());
 
   // Generate insts for every possible pc, includes possible offpath insts
   for (uns i{0}; i < (target_pool_size); i++) {
@@ -105,7 +106,7 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
     // generate_nop_sequence(kernel_buffer, uid_sequence, ICACHE_LINE_SIZE - (DISPATCH_WIDTH + 2), current_pc);
   }
   // std::cout << "Last PC is before tail end" << current_pc << std::endl;
-  generate_tail_end_insts(kernel_buffer, uid_sequence, target_pool, (DISPATCH_WIDTH + 2), get_nop_size());
+  generate_tail_end_insts(kernel_buffer, uid_sequence, target_pool, group_size, get_nop_size());
   flush_kernel_buffer(kernel_buffer, kernel_map);
   // for (auto item : kernel_map) {
   //   std::string op_name;
