@@ -54,10 +54,6 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_kernel() {
 }
 
 Kernel_Factory::Kernel_Factory(Kernel_Enum kernel, uns64 start_pc, uns64 start_uid, uns64 workloadlength)
-    /*
-      the ff are defaults, we edit them in the switch if we have to, for a particular workload.
-      If a particular workload does not require a field, its benign
-    */
     : kernel(kernel),
       start_pc(start_pc),
       start_uid(start_uid),

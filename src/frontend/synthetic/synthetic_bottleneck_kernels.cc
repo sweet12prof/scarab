@@ -45,7 +45,7 @@ void Kernel_Factory::generate_tail_end_insts(std::vector<ctype_pin_inst>& kernel
 /************  PreChecks For CF_Workloads ******************
 These prechecks warns the user beforehand if
 1. Issue packets will cross ICACHE_BOUNDARIES
-2. The chosen size for NOPs is sufficient to fill out the remaining cache line given the size of issue packets
+2. The chosen size for NOPs is sufficient to fill out the remaining cache line given the size of the issue packet
 3. If the configuration tuple; target_stride, nop_size and cf_instr_size (CF_BR, CF_CBR and CF_IBR0) are appopriate for
 correct operation
 
