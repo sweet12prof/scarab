@@ -9,8 +9,8 @@ typedef enum Sampling_Strategy_Enum {
 
 /* Enum for Kernels */
 typedef enum Load_Kernel_Type_Enum {
-  DEPENDENCE_CHAIN,
-  NO_DEPENDENCE_CHAIN
+  LATENCY,
+  BANDWIDTH
 } Load_Kernel_Type;
 
 typedef enum Limit_Load_To_Enum {

@@ -31,15 +31,19 @@ const char* sampling_strategy_names[] = {
 std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_kernel() {
   switch (kernel) {
     case MEM_FU_LIMITED:
-      return generate_load_kernel(NO_DEPENDENCE_CHAIN);
+      return generate_load_kernel(BANDWIDTH);
     case LOAD_LATENCY_LIMITED:
-      return generate_load_kernel(DEPENDENCE_CHAIN);
+      return generate_load_kernel(LATENCY);
     case CBR_LIMITED:
       return generate_cbr_kernel();
     case BTB_LIMITED:
       return generate_ubr_kernel();
-    case IBR_LIMITED:
-      return generate_round_robin_ibr_kernel();
+    case IBR_LIMITED: {
+      if (target_strategy == UNIFORM_SEQUENTIAL)
+        return generate_round_robin_ibr_kernel();
+      else
+        return generate_random_ibr_kernel();
+    }
     case ICACHE_LIMITED:
       return generate_icache_kernel();
     case ILP_LIMITED:

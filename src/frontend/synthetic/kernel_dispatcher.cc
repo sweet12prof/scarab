@@ -13,8 +13,12 @@ ctype_pin_inst Kernel_Dispatcher::synthetic_fe_generate_next(uns proc_id, bool o
     case CBR_LIMITED:
       return get_next_cbr_kernel_type_inst(proc_id, offpath);
 
-    case IBR_LIMITED:
-      return get_next_ibr_kernel_type_inst(proc_id, offpath);
+    case IBR_LIMITED: {
+      if (TARGET_SAMPLING_STRATEGY == UNIFORM_SEQUENTIAL)
+        return get_next_kernel_inst();
+      else
+        return get_next_ibr_kernel_type_inst(proc_id, offpath);
+    }
 
     default:
       assert(0 && "Invalid Kernel");
@@ -76,15 +80,16 @@ ctype_pin_inst Kernel_Dispatcher::get_next_cbr_kernel_type_inst(uns proc_id, boo
 // dispatches next ibr op and rerandomizes the ibr targets if we are at the end of random targets kernel
 ctype_pin_inst Kernel_Dispatcher::get_next_ibr_kernel_type_inst(uns proc_id, bool offpath) {
   auto inst = get_next_kernel_inst();
-  if (!offpath && (inst.op_type == OP_CF && (inst.cf_type == CF_IBR || inst.cf_type == CF_BR))) {
+  if (!offpath && (inst.op_type == OP_CF && (inst.cf_type == CF_IBR))) {
     num_of_ops_executed++;
-
-    if (num_of_ops_executed == 2) {
+    // rerandomize the target pool if we reach the end
+    if (num_of_ops_executed == TARGET_POOL_SIZE - 1) {
       num_of_ops_executed = 0;
       factory.regenerate_target_pool();
       factory.reset_target_pool_pointer();
-      kernel_map = factory.generate_kernel();
     }
+    // for the random ibr kernel, this moves the pointer to the next indirect branch target
+    kernel_map = factory.generate_kernel();
   }
   return inst;
 }
