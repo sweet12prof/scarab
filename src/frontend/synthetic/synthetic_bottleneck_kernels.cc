@@ -44,6 +44,33 @@ void Kernel_Factory::generate_tail_end_insts(std::vector<ctype_pin_inst>& kernel
   generate_nop_sequence(kernel_buffer, uid_sequence, pad_length + 1500, current_pc);
 }
 
+/************  PreChecks For CF_Workloads ******************
+These prechecks warns the user beforehand if 
+1. Issue packets will cross ICACHE_BOUNDARIES
+2. The chosen size for NOPs is sufficient to fill out the remaining cache line given the size of issue packets
+3. If the configuration tuple; target_stride, nop_size and cf_instr_size (CF_BR, CF_CBR and CF_IBR0) are appopriate for correct operation
+
+Parameter Definitions 
+1. nop_count_in_packet: How many NOPS are in an issue_packet
+2. cf_op_count_in_packet: How many cf ops are in an issue packet. CBR worklads include NOPS+CBR+BR, IBR and UBR consist of NOPS+IBR/UBR respectively
+3. target_stride: This indicates the distance between taken targets. If the starting pc is a multiple of the icache_line_size, then every issuepacket starts at an ICACHE_BOUNDARY
+4. cf_inst_size: Size of control flow instructions; CBR, UBR or IBR according to the chosen kernel
+5. nop_inst_size: Size of a NOP 
+***************************************************************/
+
+void prechecks_for_CF_kernels(uns nop_count_in_packet, uns cf_op_count_in_packet  ,uns target_stride, uns cf_inst_size, uns nop_inst_size){
+  uns cf_kernel_issue_packet_size = (nop_count_in_packet * nop_inst_size) + (cf_op_count_in_packet * cf_inst_size);
+  if(target_stride < cf_kernel_issue_packet_size)
+    std::cout << "WARNING: Invalid tuple; target_stride, nop_size and cf_inst size configuration";
+  if (cf_kernel_issue_packet_size > ICACHE_LINE_SIZE)
+    std::cout << "WARNING: CF Packets cross ICACHE_BOUNDARIES, expect Frontend Bound Bottleneck Atrribtion in Topdown";
+  else if(cf_kernel_issue_packet_size < ICACHE_LINE_SIZE){
+    // The issue packet is not fully utilizing icahce lines but we need to make sure NOP size is appopriate to fill out this gap so offpath execution will work properly
+  assert((ICACHE_LINE_SIZE - cf_kernel_issue_packet_size) % nop_inst_size == 0 && "Issue packets for this kernel < ICACHE_INE_SIZE but NOP size is inappopriate to fill out the leftover");
+  }
+};
+
+
 /* ===============================================================================================
  * CBR_LIMITED KERNEL (includes cbr_20t, cbr_50t, cbr_80t)
  * -----------------------------------------------------------------------------------------------
@@ -81,6 +108,7 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
   uns64 current_pc{0}, current_uid{0}, _target{0};
   ctype_pin_inst next_inst;
   uns group_size = DISPATCH_WIDTH*NOP_SIZE + (2*get_inst_size());
+  prechecks_for_CF_kernels(DISPATCH_WIDTH, 2, target_stride, get_inst_size(), get_nop_size());
 
   // Generate insts for every possible pc, includes possible offpath insts
   for (uns i{0}; i < (target_pool_size); i++) {
