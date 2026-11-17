@@ -94,8 +94,8 @@ ctype_pin_inst Kernel_Dispatcher::get_next_ibr_kernel_type_inst(uns proc_id, boo
   return inst;
 }
 
-Kernel_Dispatcher::Kernel_Dispatcher(Kernel_Enum kernel_, uns64 start_pc, uns64 start_uid, uns64 workload_length)
-    : factory(kernel_, start_pc, start_uid, workload_length),
+Kernel_Dispatcher::Kernel_Dispatcher(Kernel_Enum kernel_, uns64 start_pc, uns64 start_uid)
+    : factory(kernel_, start_pc, start_uid),
       kernel(kernel_),
       kernel_map(factory.generate_kernel()),
       next_pc(start_pc),

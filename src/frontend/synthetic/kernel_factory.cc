@@ -53,11 +53,11 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_kernel() {
   }
 }
 
-Kernel_Factory::Kernel_Factory(Kernel_Enum kernel, uns64 start_pc, uns64 start_uid, uns64 workloadlength)
+Kernel_Factory::Kernel_Factory(Kernel_Enum kernel, uns64 start_pc, uns64 start_uid)
     : kernel(kernel),
       start_pc(start_pc),
       start_uid(start_uid),
-      workload_length(workloadlength),
+      workload_length(WORKLOAD_LENGTH),
       starting_target(STARTING_TARGET),
       target_stride(TARGET_STRIDE),
       target_pool_size(TARGET_POOL_SIZE),
@@ -71,6 +71,7 @@ Kernel_Factory::Kernel_Factory(Kernel_Enum kernel, uns64 start_pc, uns64 start_u
       direction_strategy(static_cast<Sampling_Strategy>(DIRECTION_SAMPLING_STRATEGY)),
       uid_sequence(UNIFORM_SEQUENTIAL, 1, (WORKLOAD_LENGTH + PAD_LENGTH + 1), start_uid, 1),
       pc_sequence(UNIFORM_SEQUENTIAL, 1, WORKLOAD_LENGTH, start_pc, INST_SIZE),
-      target_pool(target_strategy, 1, target_pool_size, get_start_pc(), target_stride) {
+      target_pool(static_cast<Sampling_Strategy>(TARGET_SAMPLING_STRATEGY), 1, TARGET_POOL_SIZE, get_start_pc(),
+                  TARGET_STRIDE) {
   std::cout << "Generating " << kernel_names[kernel] << " kernel" << std::endl;
 }

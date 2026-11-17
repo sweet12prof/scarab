@@ -178,7 +178,7 @@ class Kernel_Factory {
 
  public:
   // Constructor
-  Kernel_Factory(Kernel_Enum kernel, uns64 start_pc, uns64 start_uid, uns64 workload_length);
+  Kernel_Factory(Kernel_Enum kernel, uns64 start_pc, uns64 start_uid);
   // General kernel generator
   std::map<uns64, ctype_pin_inst> generate_kernel();
 

@@ -36,7 +36,7 @@ Kernel_Dispatcher* dispatcher;
 
 void synth_init() {
   Kernel_Enum kernel = static_cast<Kernel_Enum>(KERNEL);
-  dispatcher = new Kernel_Dispatcher(kernel, (uns64)START_PC, (uns64)START_UID, 1000);
+  dispatcher = new Kernel_Dispatcher(kernel, (uns64)START_PC, (uns64)START_UID);
   uop_generator_init(NUM_CORES);
 
   for (uns proc_id{0}; proc_id < NUM_CORES; proc_id++) {

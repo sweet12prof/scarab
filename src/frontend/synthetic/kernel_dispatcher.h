@@ -10,7 +10,7 @@ class Kernel_Dispatcher {
   uns64 num_of_ops_executed;
 
  public:
-  Kernel_Dispatcher(Kernel_Enum kernel_, uns64 start_pc, uns64 start_uid, uns64 workload_length);
+  Kernel_Dispatcher(Kernel_Enum kernel_, uns64 start_pc, uns64 start_uid);
   // dispatches next instruction to be executed the kernel
   ctype_pin_inst get_next_kernel_inst();
   // dipatches next cbr op and rerandomizes the cbr directions if we are at the end of kernel

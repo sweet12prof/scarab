@@ -325,7 +325,7 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_load_kernel(Load_Kernel
         return L1_SIZE / L1_ASSOC;
       }
       default:
-        return 0;
+        return target_stride;
     }
   }();
 
@@ -393,9 +393,9 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_load_kernel(Load_Kernel
 std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_icache_kernel() {
   std::map<uns64, ctype_pin_inst> kernel_map;
   std::vector<ctype_pin_inst> kernel_buffer;
-
+  uns64 current_pc = 0;
   for (uns64 i{0}; i < workload_length; i++) {
-    auto current_pc = pc_sequence.get_next_element();
+    current_pc = pc_sequence.get_next_element();
 
     kernel_buffer.push_back(
         generate_alu_type_inst(current_pc, uid_sequence.get_next_element(), ICACHE_LINE_SIZE, 1, 2, 3));
