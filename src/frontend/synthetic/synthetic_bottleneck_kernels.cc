@@ -464,9 +464,9 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_icache_kernel() {
     current_pc = pc_sequence.get_next_element();
 
     kernel_buffer.push_back(
-        generate_alu_type_inst(current_pc, uid_sequence.get_next_element(), ICACHE_LINE_SIZE, 1, 2, 3));
+        generate_alu_type_inst(current_pc, uid_sequence.get_next_element(), get_inst_size(), 1, 2, 3));
   }
-  generate_tail_end_insts(kernel_buffer, uid_sequence, pc_sequence, ICACHE_LINE_SIZE, get_inst_size());
+  generate_tail_end_insts(kernel_buffer, uid_sequence, pc_sequence, get_inst_size(), get_inst_size());
   flush_kernel_buffer(kernel_buffer, kernel_map);
   if (DEBUG_SYNTHETIC_KERNEL_GENERATOR)
     for (auto item : kernel_map) {
