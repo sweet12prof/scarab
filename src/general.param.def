@@ -124,6 +124,6 @@ DEF_PARAM( mem_hierachy_level           , MEM_HIERACHY_LEVEL         , uns    , 
 DEF_PARAM( dependence_chain_count       , DEPENDENCE_CHAIN_COUNT     , uns    , uns        , 1       ,  ) 
 DEF_PARAM( inst_size                    , INST_SIZE                  , uns    , uns        , 1       ,  ) 
 DEF_PARAM( nop_size                     , NOP_SIZE                   , uns    , uns        , 1       ,  )
-DEF_PARAM( pad_length                   , PAD_LENGTH                 , uns    , uns        , 1024    ,  )  
+DEF_PARAM( pad_length                   , PAD_LENGTH                 , uns    , uns        , 4096    ,  )  
 DEF_PARAM( target_sampling_strategy     , TARGET_SAMPLING_STRATEGY    , uns   , sampling_strategy, UNIFORM_RANDOM,  ) 
 DEF_PARAM( direction_sampling_strategy  , DIRECTION_SAMPLING_STRATEGY, uns    , sampling_strategy, UNIFORM_RANDOM,  ) 

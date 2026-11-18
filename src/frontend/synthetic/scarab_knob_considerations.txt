@@ -1,0 +1,48 @@
+#############################################################################################################################
+# The kernel_Factory class configures the ff. members before calling the appopriate member function to 
+# create a synthetic kernel. Most of these are not feasible as sweep variables because they become invariants once we 
+# choose a bottleneck kernel. Some kernel implementations are also not generic enough to have some of these as top level knobs
+#--------------------------------------------------------------------------------------------------------------------------------      
+#      Variables              EXISTS        TYPE         Purpose 
+#---------------------------------------------------------------------------------------
+#      frontend                  Y         enum
+#      kernel                    Y         enum         Defines the type of kernel
+#                                                          
+#      workload_length           Y         UNS64        Length of the workload 
+#                                                    
+#      starting_target           Y         UNS64        This refers to starting point of a sequence. 
+#                                                       Depending on the synthetic workload in question this term chracterizes the starting value of a footprint sequence. 
+#                                                       For CBR/UBR/IBR workloads, this defines the first/starting branch target.
+#                                                       For memory latency and memory bandwidth workloads this refers to the first/starting effective memory address                                                                    
+#                                                              
+#      target_stride             Y         UNS64        If the target sequence uniformly increases by a stride, this term defines that stride 
+#                                                             
+#      target_pool_size          Y         UNS64        This term defines the sequence's pool size/length
+#                                                  
+#      t_nt_ratio                Y         double       This term defines the ratio of taken (1's) to not_taken directions(0's) to be generated 
+#                                                       in the random_pool of branch directions. 
+#                                                   
+#      memory_hierachy_level     Y         enum         This defines where the bottleneck is focused for the memory workloads (latency/bandwidth). 
+#                                                                           
+#      dependence_chain_count    Y         UNS64        For the ILP workloads. This term defines the number of dependence chains to be generated. 
+#
+#      inst_size                 Y         UNS64        For the workload of concern, this defines the size of the basic instruction leveraged. size of cbr/load/alu_type etc.
+#
+#      nop_size                  Y         UNS64        This term defines the size of the NOP instruction as it pertains to a praticular workload
+#
+#      pad_length                Y         UNS64        Where we leverage backward branches back to the beginning of a workload. This defines the number 
+#                                                       of padded NOPs required until the scarab recover back to the onpath if it redirects at the backward branch.
+# 
+#    target_sampling_strategy    Y          enum        This term describes the sampling strategy from the target sequence pool. 
+#                                                       UNIFORM_SEQUENTIAL : picks sequentially
+#                                                       UNIFORM_RANDOM     : picks sequentially from a shuffled pool
+#                                                       NORMAL_RANDOM      : picks sequentially from a shuffled normal distrubtion(bell curve) pool
+#                                                       DISCRETE_RANDOM    : picks sequentially from a random distribution where every sample frequency is weighted
+#                                                       USER_DEFINED       : user provides sequence
+#      
+#   direction_sampling_strategy  Y          enum        This term describes the sampling strategy from the branch direction sequence pool. 
+#                                                       UNIFORM_SEQUENTIAL : picks sequentially
+#                                                       UNIFORM_RANDOM     : picks sequentially from a shuffled pool
+#                                                       NORMAL_RANDOM      : picks sequentially from a shuffled normal distrubtion(bell curve) pool
+#                                                       DISCRETE_RANDOM    : picks sequentially from a random distribution where every sample frequency is weighted
+#                                                       USER_DEFINED       : user provides sequence

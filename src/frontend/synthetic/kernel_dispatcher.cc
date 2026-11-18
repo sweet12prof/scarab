@@ -1,6 +1,19 @@
+extern "C" {
+#include "globals/assert.h"
+#include "globals/global_defs.h"
+#include "globals/global_types.h"
+#include "globals/global_vars.h"
+#include "globals/utils.h"
+
+#include "debug/debug.param.h"
+#include "debug/debug_macros.h"
+#include "debug/debug_print.h"
+}
+#include <cassert>
+
 #include "kernel_dispatcher.h"
 
-#include <cassert>
+#define DEBUG(args...) _SDEBUG(DEBUG_SYNTHETIC_KERNEL_DISPATCHER, ##args)
 
 ctype_pin_inst Kernel_Dispatcher::synthetic_fe_generate_next(uns proc_id, bool offpath) {
   switch (kernel) {
@@ -26,35 +39,22 @@ ctype_pin_inst Kernel_Dispatcher::synthetic_fe_generate_next(uns proc_id, bool o
 }
 
 // dispatches next instruction to be executed the kernel
-ctype_pin_inst Kernel_Dispatcher::get_next_kernel_inst() {
+ctype_pin_inst Kernel_Dispatcher::get_next_kernel_inst(uns proc_id) {
   auto inst_pc = get_next_pc();
   auto it = kernel_map.find(inst_pc);
-
-  if (it == kernel_map.end()) {
-    for (auto item : kernel_map) {
-      std::string op_name;
-      switch (item.second.op_type) {
-        case OP_CF: {
-          if (item.second.cf_type == CF_CBR)
-            op_name = " cbr";
-          else if (item.second.cf_type == CF_BR)
-            op_name = " br";
-        } break;
-
-        case OP_NOP:
-          op_name = "nop";
-          break;
-
-        default:
-          op_name = "inv";
-          break;
-      }
-      std::cout << " pc: " << item.first << " op: " << op_name << " op_size " << (uint32_t)item.second.size
-                << std::endl;
+  // at this stage inst_count[proc_id] and op_count[proc_id] are invalid hence cant use DEBUG macro
+  if (DEBUG_SYNTHETIC_KERNEL_DISPATCHER) {
+    if (it != kernel_map.end())
+      printf("\nop_type:%d ip:%llu next_addr:%llu size:%d branch_target:%llu branch_dir:%d inst_uid:%llu",
+             (uns32)it->second.op_type, (unsigned long long)it->second.instruction_addr,
+             (unsigned long long)it->second.instruction_next_addr, (uns32)it->second.size,
+             (unsigned long long)it->second.branch_target, (uns32)it->second.actually_taken,
+             (unsigned long long)it->second.inst_uid);
+    else {
+      printf("Missing inst at pc: %llu", inst_pc);
+      ASSERT(proc_id, it != kernel_map.end());
     }
-    std::cout << "Looking for pc: " << inst_pc << std::endl;
   }
-  assert(it != kernel_map.end() && "Every inst possible should be in the map");
 
   auto inst = it->second;
   next_pc = inst.instruction_next_addr;

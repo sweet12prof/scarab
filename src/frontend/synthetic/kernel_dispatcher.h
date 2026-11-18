@@ -12,7 +12,7 @@ class Kernel_Dispatcher {
  public:
   Kernel_Dispatcher(Kernel_Enum kernel_, uns64 start_pc, uns64 start_uid);
   // dispatches next instruction to be executed the kernel
-  ctype_pin_inst get_next_kernel_inst();
+  ctype_pin_inst get_next_kernel_inst(uns proc_id = 1);
   // dipatches next cbr op and rerandomizes the cbr directions if we are at the end of kernel
   ctype_pin_inst get_next_cbr_kernel_type_inst(uns proc_id, bool offpath);
   // dispatches next ibr op and rerandomizes the ibr targets if they are supposed to be random

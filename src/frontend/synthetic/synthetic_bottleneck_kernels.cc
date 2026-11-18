@@ -1,3 +1,14 @@
+extern "C" {
+#include "globals/assert.h"
+#include "globals/global_defs.h"
+#include "globals/global_types.h"
+#include "globals/global_vars.h"
+#include "globals/utils.h"
+
+#include "debug/debug.param.h"
+#include "debug/debug_macros.h"
+#include "debug/debug_print.h"
+}
 #include <cassert>
 #include <iostream>
 
@@ -8,6 +19,8 @@
 #include "kernel_factory.h"
 #include "sampler.h"
 #include "synthetic_basic_apis.h"
+
+#define DEBUG(args...) _SDEBUG(DEBUG_SYNTHETIC_KERNEL_GENERATOR, ##args)
 
 // Flushes the kernel buffer into a map at the end of kernel generation. **
 void flush_kernel_buffer(std::vector<ctype_pin_inst>& buffer, std::map<uns64, ctype_pin_inst>& kernel_map) {
@@ -39,7 +52,7 @@ void Kernel_Factory::generate_tail_end_insts(std::vector<ctype_pin_inst>& kernel
                                                  unconditional_branch_size);
   kernel_buffer.push_back(next_inst);
   current_pc += unconditional_branch_size;
-  generate_nop_sequence(kernel_buffer, uid_sequence, pad_length + 1500, current_pc);
+  generate_nop_sequence(kernel_buffer, uid_sequence, pad_length, current_pc);
 }
 
 /************  PreChecks For CF_Workloads ******************
@@ -52,9 +65,10 @@ correct operation
 Parameter Definitions
 1. nop_count_in_packet: How many NOPS are in an issue_packet
 2. cf_op_count_in_packet: How many cf ops are in an issue packet. CBR worklads include NOPS+CBR+BR, IBR and UBR consist
-of NOPS+IBR/UBR respectively
+of NOPS+IBR, NOPS+UBR respectively
 3. target_stride: This indicates the distance between taken targets. If the starting pc is a multiple of the
-icache_line_size, then every issuepacket starts at an ICACHE_BOUNDARY
+icache_line_size, and the target_stride is a factor of icache_line_size, then every issuepacket starts at an
+ICACHE_BOUNDARY
 4. cf_inst_size: Size of control flow instructions; CBR, UBR or IBR according to the chosen kernel
 5. nop_inst_size: Size of a NOP
 ***************************************************************/
@@ -112,7 +126,7 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
   for (uns i{0}; i < (target_pool_size); i++) {
     // generate leading nops and return next pc
     current_pc = target_pool.get_next_element();
-    auto temp = current_pc;  // use temp to determine if we exhausted a full cache line later.
+    uns64 temp = current_pc;  // use temp to determine if we exhausted a full cache line later.
     current_pc = generate_nop_sequence(kernel_buffer, uid_sequence, DISPATCH_WIDTH, current_pc);
     current_uid = uid_sequence.get_next_element();
     // every taken target is the next element in the shuffled sequence
@@ -135,9 +149,19 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_cbr_kernel() {
       generate_nop_sequence(kernel_buffer, uid_sequence, empty_distance, current_pc);
     }
   }
-  uns packet_size = (DISPATCH_WIDTH * NOP_SIZE) + (2 * get_inst_size());
+  uns packet_size = (DISPATCH_WIDTH * get_nop_size()) + (2 * get_inst_size());
   generate_tail_end_insts(kernel_buffer, uid_sequence, target_pool, packet_size, get_nop_size());
   flush_kernel_buffer(kernel_buffer, kernel_map);
+  // at this stage inst_count[proc_id] and op_count[proc_id] are invalid hence cant use DEBUG macro
+  if (DEBUG_SYNTHETIC_KERNEL_GENERATOR) {
+    for (auto item : kernel_map) {
+      printf("\nop_type:%d ip:%llu next_addr:%llu size:%d branch_target:%llu branch_dir:%d inst_uid:%llu",
+             item.second.op_type, (unsigned long long)item.second.instruction_addr,
+             (unsigned long long)item.second.instruction_next_addr, (uns32)item.second.size,
+             (unsigned long long)item.second.branch_target, (uns32)item.second.actually_taken,
+             (unsigned long long)item.second.inst_uid);
+    }
+  }
   return kernel_map;
 }
 
@@ -178,6 +202,15 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_ubr_kernel() {
   generate_tail_end_insts(kernel_buffer, uid_sequence, target_pool, packet_size, get_inst_size());
 
   flush_kernel_buffer(kernel_buffer, kernel_map);
+  if (DEBUG_SYNTHETIC_KERNEL_GENERATOR) {
+    for (auto item : kernel_map) {
+      printf("\nop_type:%d ip:%llu next_addr:%llu size:%d branch_target:%llu branch_dir:%d inst_uid:%llu",
+             item.second.op_type, (unsigned long long)item.second.instruction_addr,
+             (unsigned long long)item.second.instruction_next_addr, (uns32)item.second.size,
+             (unsigned long long)item.second.branch_target, (uns32)item.second.actually_taken,
+             (unsigned long long)item.second.inst_uid);
+    }
+  }
   return kernel_map;
 }
 
@@ -222,6 +255,14 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_random_ibr_kernel() {
     current_pc += get_inst_size();
   }
   flush_kernel_buffer(kernel_buffer, kernel_map);
+  if (DEBUG_SYNTHETIC_KERNEL_GENERATOR)
+    for (auto item : kernel_map) {
+      printf("\nop_type:%d ip:%llu next_addr:%llu size:%d branch_target:%llu branch_dir:%d inst_uid:%llu",
+             item.second.op_type, (unsigned long long)item.second.instruction_addr,
+             (unsigned long long)item.second.instruction_next_addr, (uns32)item.second.size,
+             (unsigned long long)item.second.branch_target, (uns32)item.second.actually_taken,
+             (unsigned long long)item.second.inst_uid);
+    }
   return kernel_map;
 }
 
@@ -247,6 +288,14 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_round_robin_ibr_kernel(
   uns packet_size = ((DISPATCH_WIDTH - 1) * NOP_SIZE) + (get_inst_size());
   generate_tail_end_insts(kernel_buffer, uid_sequence, target_pool, packet_size, get_inst_size());
   flush_kernel_buffer(kernel_buffer, kernel_map);
+  if (DEBUG_SYNTHETIC_KERNEL_GENERATOR)
+    for (auto item : kernel_map) {
+      printf("\nop_type:%d ip:%llu next_addr:%llu size:%d branch_target:%llu branch_dir:%d inst_uid:%llu",
+             item.second.op_type, (unsigned long long)item.second.instruction_addr,
+             (unsigned long long)item.second.instruction_next_addr, (uns32)item.second.size,
+             (unsigned long long)item.second.branch_target, (uns32)item.second.actually_taken,
+             (unsigned long long)item.second.inst_uid);
+    }
   return kernel_map;
 }
 
@@ -287,6 +336,14 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_ilp_kernel(uns dependen
   }
   generate_tail_end_insts(kernel_buffer, uid_sequence, pc_sequence, get_inst_size(), get_inst_size());
   flush_kernel_buffer(kernel_buffer, kernel_map);
+  if (DEBUG_SYNTHETIC_KERNEL_GENERATOR)
+    for (auto item : kernel_map) {
+      printf("\nop_type:%d ip:%llu next_addr:%llu size:%d src_reg1:%d src_reg2:%d dst_regs:%d inst_uid:%llu",
+             (uns32)item.second.op_type, (unsigned long long)item.second.instruction_addr,
+             (unsigned long long)item.second.instruction_next_addr, (uns32)item.second.size,
+             (uns32)item.second.src_regs[0], (uns32)item.second.src_regs[1], (uns32)item.second.dst_regs[0],
+             (unsigned long long)item.second.inst_uid);
+    }
   return kernel_map;
 }
 
@@ -379,6 +436,15 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_load_kernel(Load_Kernel
   }
   generate_tail_end_insts(kernel_buffer, uid_sequence, pc_sequence, get_inst_size(), get_inst_size());
   flush_kernel_buffer(kernel_buffer, kernel_map);
+  if (DEBUG_SYNTHETIC_KERNEL_GENERATOR)
+    for (auto item : kernel_map) {
+      printf("\nop_type:%d ip:%llu next_addr:%llu size:%d src_reg1:%d ld_vaddr:%llu dst_regs:%d inst_uid:%llu",
+             (uns32)item.second.op_type, (unsigned long long)item.second.instruction_addr,
+             (unsigned long long)item.second.instruction_next_addr, (uns32)item.second.size,
+             (uns32)item.second.ld1_addr_regs[0], (uns64)item.second.ld_vaddr, (uns32)item.second.dst_regs[0],
+             (unsigned long long)item.second.inst_uid);
+    }
+
   return kernel_map;
 }
 
@@ -402,5 +468,13 @@ std::map<uns64, ctype_pin_inst> Kernel_Factory::generate_icache_kernel() {
   }
   generate_tail_end_insts(kernel_buffer, uid_sequence, pc_sequence, ICACHE_LINE_SIZE, get_inst_size());
   flush_kernel_buffer(kernel_buffer, kernel_map);
+  if (DEBUG_SYNTHETIC_KERNEL_GENERATOR)
+    for (auto item : kernel_map) {
+      printf("\nop_type:%d ip:%llu next_addr:%llu size:%d src_reg1:%d src_reg2:%d dst_regs:%d inst_uid:%llu",
+             (uns32)item.second.op_type, (unsigned long long)item.second.instruction_addr,
+             (unsigned long long)item.second.instruction_next_addr, (uns32)item.second.size,
+             (uns32)item.second.src_regs[0], (uns32)item.second.src_regs[1], (uns32)item.second.dst_regs[0],
+             (unsigned long long)item.second.inst_uid);
+    }
   return kernel_map;
 }

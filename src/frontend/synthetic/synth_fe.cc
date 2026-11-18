@@ -23,7 +23,7 @@ extern "C" {
 #include "kernel_dispatcher.h"
 #include "kernel_params.h"
 // #define PRINT_INSTRUCTION_INFO
-#define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_SYNTHETIC_INST, ##args)
+#define DEBUG(proc_id, args...) _DEBUG(proc_id, DEBUG_SYNTHETIC_FRONTEND, ##args)
 #define START_PC 256
 #define START_UID 1000
 /* intrinsic frontend variables */
